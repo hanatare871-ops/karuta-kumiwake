@@ -1,0 +1,1763 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>競技かるた 対戦組</title>
+<style>
+:root{
+  --ai:#22335C;        /* 藍 */
+  --ai-deep:#16223F;
+  --sumi:#2B2B30;      /* 墨 */
+  --kami:#FAFAF7;      /* 紙 */
+  --usuzumi:#8A8A93;
+  --line:#E3E2DC;
+  --aka:#B3342E;       /* 緋 — 競技線・警告のみ */
+  --tatami:#5E7355;    /* 畳 — 成立・希望 */
+  --card:#FFFFFF;
+  --radius:10px;
+  --serif:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  --sans:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--kami);color:var(--sumi);line-height:1.6;-webkit-font-smoothing:antialiased}
+header{background:var(--ai-deep);color:#F4F3EE;padding:26px 20px 22px;position:relative;overflow:hidden}
+header::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.035) 46px 47px);pointer-events:none}
+.header-inner{max-width:860px;margin:0 auto;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em}
+.header-sub{font-size:12.5px;color:#B9BFCE;letter-spacing:.06em}
+main{max-width:860px;margin:0 auto;padding:20px 16px 80px}
+html{scroll-behavior:smooth}
+#quick-nav{position:sticky;top:0;z-index:50;background:rgba(250,250,247,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:7px 12px;display:flex;gap:8px;justify-content:center}
+#quick-nav a{font-size:12.5px;font-weight:600;color:var(--ai);text-decoration:none;padding:5px 12px;border:1px solid #D5D9E3;border-radius:999px;background:#fff}
+#quick-nav a:active{background:#EEF1F7}
+#quick-nav a.nav-result{border-color:var(--tatami);color:var(--tatami)}
+.next-tag{font-size:11px;font-weight:700;color:#fff;background:var(--tatami);border-radius:4px;padding:1px 8px}
+.round-card.next-round{border-color:var(--tatami);box-shadow:0 0 0 1px var(--tatami)}
+.stepper{display:inline-flex;align-items:center;gap:0;border:1px solid #CFCEC7;border-radius:7px;overflow:hidden}
+.stepper button{border-radius:0;background:#F2F2ED;color:var(--ai);font-size:18px;padding:6px 14px;line-height:1.2}
+.stepper input{border:none;width:56px;text-align:center;border-radius:0}
+.fix-here{margin-left:auto}
+section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:18px;overflow:hidden}
+.sec-head{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line)}
+.sec-head h2{font-family:var(--serif);font-size:16.5px;font-weight:600;letter-spacing:.1em;color:var(--ai)}
+.sec-tag{writing-mode:vertical-rl;font-family:var(--serif);font-size:10px;letter-spacing:.25em;color:#fff;background:var(--ai);padding:6px 3px;border-radius:3px;line-height:1;min-height:44px;text-align:center;flex:none}
+.sec-body{padding:16px 18px}
+.usage{
+  background:#F4F5F8;border-left:3px solid var(--ai);
+  font-size:12.5px;color:#4C4C55;
+  padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:14px;
+}
+.usage b{color:var(--ai)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text],input[type=number],select,textarea{font-family:var(--sans);font-size:15px;padding:9px 11px;border:1px solid #CFCEC7;border-radius:7px;background:#fff;color:var(--sumi)}
+input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ai);outline-offset:1px}
+textarea{width:100%;resize:vertical}
+button{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:9px 16px;border:none;border-radius:7px;cursor:pointer;background:var(--ai);color:#fff;letter-spacing:.04em;transition:filter .12s}
+button:hover{filter:brightness(1.15)}
+button.ghost{background:#fff;color:var(--ai);border:1px solid var(--ai)}
+button.small{font-size:12.5px;padding:5px 10px}
+button.danger-ghost{background:#fff;color:var(--aka);border:1px solid var(--aka)}
+button:disabled{opacity:.6;cursor:default}
+.hint{font-size:12px;color:var(--usuzumi);margin-top:6px}
+.muted{color:var(--usuzumi)}
+
+/* 選手一覧 */
+.rank-group{margin-top:14px}
+.rank-group-title{font-size:12.5px;font-weight:700;color:var(--ai);letter-spacing:.08em;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.rank-group-title .cnt{font-weight:400;color:var(--usuzumi)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#F2F2ED;border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;font-size:14px}
+.chip .x{width:20px;height:20px;border-radius:50%;background:#DDDCD5;color:#66666E;border:none;padding:0;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+.chip .x:hover{background:var(--aka);color:#fff;filter:none}
+.rank-badge{font-family:var(--serif);font-weight:700;font-size:11.5px;color:#fff;border-radius:4px;padding:1px 6px;letter-spacing:.02em;flex:none;white-space:nowrap}
+.rank-Ap{background:#0F1B33}.rank-A{background:#22335C}
+.rank-Bp{background:#2C4270}.rank-B{background:#3C5488}
+.rank-Cp{background:#47603F}.rank-C{background:#5E7355}
+.rank-Dp{background:#7D6330}.rank-D{background:#9A7B3F}
+.rank-Ep{background:#6E6E77}.rank-E{background:#8A8A93}
+.attr-tag{font-size:10.5px;font-weight:700;border-radius:4px;padding:0 5px;flex:none}
+.attr-現役{background:#E8EEF7;color:#2C4270;border:1px solid #C4D2E6}
+.attr-OBOG{background:#F1EBDD;color:#7D6330;border:1px solid #E0D3B4}
+
+/* 希望・NGリスト */
+.req-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.req-item{display:flex;align-items:center;gap:10px;background:#F5F7F3;border:1px solid #DDE4D8;border-radius:7px;padding:7px 12px;font-size:14px}
+.req-item .vs{font-family:var(--serif);color:var(--tatami);font-weight:700}
+.req-item.ng{background:#FAF1F0;border-color:#E7C8C5}
+.req-item.ng .vs{color:var(--aka)}
+
+/* 抜け番 */
+/* 人選択コンボボックス(検索+プルダウン) */
+.picker{position:relative;display:inline-flex;align-items:center}
+.picker-input{width:170px;padding-right:30px !important}
+.picker-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--usuzumi);font-size:13px;padding:4px 6px;cursor:pointer;line-height:1}
+.picker-toggle:hover{color:var(--ai);filter:none}
+.picker-list{position:absolute;top:calc(100% + 3px);left:0;min-width:210px;max-height:230px;overflow-y:auto;background:#fff;border:1px solid #CFCEC7;border-radius:8px;box-shadow:0 6px 18px rgba(30,35,60,.16);z-index:40}
+.picker-item{display:block;width:100%;text-align:left;background:#fff;color:var(--sumi);font-weight:400;font-size:14px;border:none;border-radius:0;border-bottom:1px solid #F2F1EC;padding:9px 12px}
+.picker-item:last-child{border-bottom:none}
+.picker-item:hover{background:#EEF1F7;filter:none}
+.picker-empty{padding:9px 12px;font-size:13px;color:var(--usuzumi)}
+.picker-group{padding:5px 12px;font-size:11px;font-weight:700;color:var(--usuzumi);background:#F7F7F3;border-bottom:1px solid #F2F1EC;position:sticky;top:0}
+.picker-note{padding:7px 12px;font-size:12px;color:var(--tatami);background:#F5F7F3;border-bottom:1px solid #E4EADF}
+.club-tag{font-size:10.5px;color:#5A5A63;background:#F2F2ED;border:1px solid var(--line);border-radius:4px;padding:0 5px;white-space:nowrap}
+.player-card .club-tag{font-size:10px}
+.club-line{font-size:11px;color:var(--usuzumi);margin-top:1px}
+.bye-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--line)}
+.bye-row:last-of-type{border-bottom:none}
+.bye-label{white-space:nowrap;color:var(--ai);font-weight:600;font-size:13.5px;min-width:64px}
+.bye-row select{font-size:13px;padding:5px 8px;max-width:180px;color:var(--usuzumi)}
+.bye-chip{background:#F1EBDD;border-color:#E0D3B4}
+.bye-row .fixed-mark{color:var(--usuzumi);font-size:12.5px}
+
+/* 確定バナー */
+.fixed-banner{background:#EEF1F7;border:1px solid #C9D2E4;color:var(--ai);border-radius:7px;padding:9px 13px;font-size:13.5px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* 生成ボタン帯 */
+.generate-bar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 20px;align-items:center}
+.generate-bar button.main-gen{font-size:16px;padding:13px 34px;letter-spacing:.12em}
+
+/* 結果 */
+.round-card{margin-bottom:16px}
+.round-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line);background:linear-gradient(#fff,#FAFAF6)}
+.round-head h3{font-family:var(--serif);font-size:17px;color:var(--ai);letter-spacing:.12em}
+.round-head .fixed-tag{font-size:11px;font-weight:700;color:#fff;background:var(--usuzumi);border-radius:4px;padding:1px 8px}
+.bye-note{font-size:12.5px;color:var(--usuzumi)}
+.bye-note b{color:var(--sumi)}
+.matches{padding:10px 14px 14px}
+.match{display:grid;grid-template-columns:1fr 34px 1fr;align-items:stretch;gap:0;margin:8px 0}
+.player-card{background:#FFFFFE;border:1px solid #D8D7D0;border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;min-height:48px;box-shadow:0 1px 2px rgba(30,35,60,.06)}
+.player-card.right{flex-direction:row-reverse;text-align:right}
+.player-card .name{font-family:var(--serif);font-size:16px;font-weight:600;overflow-wrap:anywhere}
+.center-line{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative}
+.center-line::before{content:"";position:absolute;top:4px;bottom:4px;left:50%;width:2px;background:var(--aka);border-radius:1px;transform:translateX(-50%)}
+.center-line span{position:relative;background:var(--kami);font-family:var(--serif);font-size:10px;color:var(--aka);writing-mode:vertical-rl;letter-spacing:.2em;padding:2px 0}
+.match-flags{grid-column:1 / -1;display:flex;gap:8px;margin-top:3px;flex-wrap:wrap}
+.flag{font-size:11.5px;border-radius:4px;padding:1px 8px;font-weight:600}
+.flag.wish{background:#EAF0E6;color:var(--tatami);border:1px solid #C9D6C1}
+.flag.cross{background:#F4EFE4;color:#8A6B2C;border:1px solid #E0D3B4}
+.flag.repeat{background:#F9E9E8;color:var(--aka);border:1px solid #E7BEBB}
+.flag.obog{background:#E8EEF7;color:#2C4270;border:1px solid #C4D2E6}
+
+/* 集計 */
+.summary-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px}
+.summary-table th,.summary-table td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+.summary-table th{color:var(--ai);font-size:12.5px;letter-spacing:.05em;white-space:nowrap}
+.summary-table td.opps{color:#4A4A52}
+.empty-note{color:var(--usuzumi);font-size:13.5px;padding:6px 2px}
+.warn-banner{background:#F9E9E8;border:1px solid #E7BEBB;color:var(--aka);border-radius:7px;padding:9px 13px;font-size:13.5px;margin-bottom:12px}
+.ok-banner{background:#EAF0E6;border:1px solid #C9D6C1;color:#3E5236;border-radius:7px;padding:9px 13px;font-size:13.5px;margin-bottom:12px}
+
+@media (max-width:560px){
+  .match{grid-template-columns:1fr 26px 1fr}
+  .player-card .name{font-size:14.5px}
+  h1{font-size:21px}
+}
+@media print{
+  header,#setup-area,.generate-bar,.no-print{display:none !important}
+  body{background:#fff}
+  main{padding:0;max-width:none}
+  section{border:none;box-shadow:none;break-inside:avoid}
+  .player-card{box-shadow:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <h1>競技かるた 対戦組</h1>
+    <div class="header-sub">同級優先・再戦回避の組み合わせを自動作成</div>
+  </div>
+</header>
+<nav id="quick-nav" class="no-print">
+  <a href="#sec-players">選手</a>
+  <a href="#sec-settings">設定</a>
+  <a href="#sec-data">記録</a>
+  <a href="#results" class="nav-result" id="nav-result" style="display:none">結果へ</a>
+</nav>
+<main>
+
+<div id="fixed-banner-area"></div>
+
+<div id="setup-area">
+
+<!-- 選手登録 -->
+<section id="sec-players">
+  <div class="sec-head"><span class="sec-tag">選手</span><h2>選手登録</h2></div>
+  <div class="sec-body">
+    <div class="usage"><b>使い方</b>:名前と級を選んで「追加」。複数人まとめて入れるなら「まとめて追加」で名前を並べて書き、級を1回選ぶだけ。属性(現役/OBOG)はOBOG会モード用、所属会は「会を入れる」をオンにしたときだけ使います(どちらも普段は不要)。名前の×で削除できます。</div>
+    <div class="row" style="margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ai);cursor:pointer">
+        <input type="checkbox" id="club-mode" style="width:17px;height:17px">
+        会を入れる
+      </label>
+      <span class="hint" style="margin-top:0">合同練習用。オンにすると<b>同じ会同士の対戦を避けて</b>組みます(同じ会だけの練習なら不要)。</span>
+    </div>
+    <div class="row">
+      <input type="text" id="name-input" placeholder="名前" style="flex:1;min-width:120px" maxlength="20">
+      <select id="rank-input"></select>
+      <select id="attr-input">
+        <option value="">属性なし</option>
+        <option value="現役">現役</option>
+        <option value="OBOG">OBOG</option>
+      </select>
+      <span class="picker club-field" id="club-input" style="display:none"></span>
+      <button id="add-player-btn">追加</button>
+      <button class="ghost" id="toggle-bulk-btn">まとめて追加</button>
+    </div>
+    <div id="bulk-area" style="display:none;margin-top:10px">
+      <textarea id="bulk-input" rows="4" placeholder="名前をスペース・「、」・「,」・改行で区切って入力&#10;例) 佐藤 鈴木 田中、高橋,伊藤&#10;※Excelやスプレッドシートの「名前|級|属性|会」の列をコピーして貼り付けてもOK"></textarea>
+      <div class="row" style="margin-top:8px">
+        <span class="muted" style="font-size:13px">全員の級:</span>
+        <select id="bulk-rank"></select>
+        <span class="muted" style="font-size:13px">属性:</span>
+        <select id="bulk-attr">
+          <option value="">なし</option>
+          <option value="現役">現役</option>
+          <option value="OBOG">OBOG</option>
+        </select>
+        <span class="muted club-field" style="font-size:13px;display:none">会:</span>
+        <span class="picker club-field" id="bulk-club" style="display:none"></span>
+        <button id="bulk-add-btn">一括登録</button>
+      </div>
+      <div class="hint">名前だけの場合は全員がここで選んだ級・属性になります。Excelやスプレッドシートで「名前・級・属性・会」の列を範囲コピーして貼り付けた場合は、各行の値がそのまま使われます(空欄の行は上の選択が適用)。</div>
+    </div>
+    <div id="player-list"></div>
+    <div class="row" style="margin-top:14px;justify-content:space-between">
+      <span class="hint" id="player-count">登録 0名</span>
+      <span>
+        <button class="ghost small" id="sample-btn">サンプル投入</button>
+        <button class="danger-ghost small" id="clear-players-btn">全削除</button>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- 設定 -->
+<section id="sec-settings">
+  <div class="sec-head"><span class="sec-tag">設定</span><h2>試合設定</h2></div>
+  <div class="sec-body">
+    <div class="usage"><b>使い方</b>:試合数を決め、必要なら「対戦希望」(当てたい2人)と「対戦NG」(当てたくない2人)を追加。人の指定はどの欄も、名前の入力(途中から候補が出ます)と▾の一覧選択のどちらでもOK。抜ける人は試合ごとに何人でも指定でき、残りが奇数なら自動でもう1人抜け番になります。</div>
+    <div class="row">
+      <label for="rounds-input" style="font-weight:600;color:var(--ai)">試合数</label>
+      <span class="stepper">
+        <button type="button" id="rounds-minus" aria-label="試合数を減らす">−</button>
+        <input type="number" id="rounds-input" min="1" max="20" value="3">
+        <button type="button" id="rounds-plus" aria-label="試合数を増やす">＋</button>
+      </span>
+      <span class="hint">1人あたりの試合数(=回戦数)です。</span>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ai);cursor:pointer">
+        <input type="checkbox" id="obog-mode" style="width:17px;height:17px">
+        OBOG会モード
+      </label>
+      <span class="hint" style="margin-top:0">「違う属性×同じ級」を最優先に組みます。難しい場合は級より属性違いを優先。属性なしの人は通常通り。</span>
+    </div>
+
+    <div style="margin-top:18px">
+      <div style="font-weight:600;color:var(--ai);margin-bottom:6px">対戦希望</div>
+      <div class="row">
+        <span class="picker" id="req-a"></span>
+        <span class="muted">と</span>
+        <span class="picker" id="req-b"></span>
+        <select id="req-round"><option value="">試合指定なし</option></select>
+        <button class="small" id="add-req-btn">希望を追加</button>
+        <button class="ghost small" id="toggle-req-bulk-btn">まとめて追加</button>
+      </div>
+      <div class="hint">指定した2人が当たるように優先して組みます。「第◯試合」を選ぶとその試合で取り(それより前の試合では当てません)、「試合指定なし」ならどこかの試合で取ります。</div>
+      <div id="req-bulk-area" style="display:none;margin-top:8px">
+        <div class="usage" style="margin-bottom:8px"><b>入力のルール</b><br>・違う組み合わせを追加したいときは<b>改行</b>して1行ずつ書く<br>・何試合目でやるか指定したいときは、<b>名前のあとにスペースを空けて数字</b>を入れる(例:<b>田中 高橋 3</b> → 第3試合)</div>
+        <textarea id="req-bulk-input" rows="3" placeholder="1行に対戦させたい2人。区切りはスペース・「、」・「,」&#10;例)&#10;佐藤 鈴木&#10;田中、高橋 3"></textarea>
+        <div class="row" style="margin-top:6px">
+          <button class="small" id="req-bulk-add-btn">一括で希望に追加</button>
+          <span class="hint">登録済みの選手名のみ有効です。一覧にない名前を含む行はスキップします。</span>
+        </div>
+      </div>
+      <div class="req-list" id="req-list"></div>
+    </div>
+
+    <div style="margin-top:18px">
+      <div style="font-weight:600;color:var(--aka);margin-bottom:6px">対戦NG</div>
+      <div class="row">
+        <span class="picker" id="ng-a"></span>
+        <span class="muted">と</span>
+        <span class="picker" id="ng-b"></span>
+        <button class="small" id="add-ng-btn" style="background:var(--aka)">NGを追加</button>
+        <button class="ghost small" id="toggle-ng-bulk-btn">まとめて追加</button>
+      </div>
+      <div class="hint">指定した2人が当たらないように組みます。</div>
+      <div id="ng-bulk-area" style="display:none;margin-top:8px">
+        <div class="usage" style="margin-bottom:8px"><b>入力のルール</b><br>・違う組み合わせを追加したいときは<b>改行</b>して1行ずつ書く</div>
+        <textarea id="ng-bulk-input" rows="3" placeholder="1行に当てたくない2人。区切りはスペース・「、」・「,」&#10;例)&#10;佐藤 鈴木&#10;田中、高橋"></textarea>
+        <div class="row" style="margin-top:6px">
+          <button class="small" id="ng-bulk-add-btn" style="background:var(--aka)">一括でNGに追加</button>
+          <span class="hint">登録済みの選手名のみ有効です。一覧にない名前を含む行はスキップします。</span>
+        </div>
+      </div>
+      <div class="req-list" id="ng-list"></div>
+    </div>
+
+    <div style="margin-top:18px" id="bye-section">
+      <div style="font-weight:600;color:var(--ai);margin-bottom:6px">抜ける人の指定 <span class="hint" style="display:inline">(各試合・何人でも)</span></div>
+      <div id="bye-config"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 履歴・データ -->
+<section id="sec-data">
+  <div class="sec-head"><span class="sec-tag">記録</span><h2>対戦履歴とデータ</h2></div>
+  <div class="sec-body">
+    <div class="usage"><b>使い方</b>:練習の最後に結果下の「履歴に保存」を押すと対戦が記録され、次回は過去に当たった相手を避けて組めます。メンバー・設定・最後に組んだ組み合わせはこの端末に自動保存され、次回開いたときにそのまま表示されます。<b>「ファイルに書き出し」で選手・NG・対戦希望・組んだ対戦をまるごと保存</b>できるので、ブラウザの記録が消えても、そのファイルを読み込めば復旧・引き継ぎができます。読み込むと選手・NG・対戦希望を反映した“生成前の状態”に戻り、保存時に対戦を組んでいれば「その対戦を呼び出す」→「何試合目まで実施済みか」を指定して、そこまでを確定し続きだけ組み直せます。対戦表の.xlsx・CSV・テキストからも対戦を呼び出せます。ファイル選択が使えない端末では「貼り付けで読み込み」をどうぞ。</div>
+    <div class="hint" style="margin-top:0;display:none"></div>
+    <div class="row" style="justify-content:space-between">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ai);cursor:pointer">
+        <input type="checkbox" id="use-history" checked style="width:17px;height:17px">
+        過去の練習の対戦も避けて組む
+      </label>
+      <span class="hint" id="history-count" style="margin-top:0">記録済み 0件</span>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="ghost small" id="export-btn">ファイルに書き出し</button>
+      <button class="ghost small" id="import-btn">ファイルから読み込み</button>
+      <input type="file" id="import-file" accept=".json,.txt,.xlsx,.csv,application/json,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,*/*" style="display:none">
+      <button class="ghost small" id="paste-import-btn">貼り付けで読み込み</button>
+      <button class="danger-ghost small" id="clear-history-btn">履歴を全消去</button>
+    </div>
+    <div id="paste-import-area" style="display:none;margin-top:10px">
+      <textarea id="paste-import-input" rows="4" placeholder="書き出したファイルをメモ帳などで開き、中身を全部コピーしてここに貼り付けてください"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="small" id="paste-import-run">この内容を読み込む</button>
+        <span class="hint">ファイル選択がうまくいかない端末(スマホ等)向けの読み込み方法です。</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /setup-area -->
+
+<div class="generate-bar">
+  <button id="generate-btn" class="main-gen">組み合わせを作成</button>
+  <button class="ghost" id="regen-btn" style="display:none">別の組み合わせで再作成</button>
+  <button class="ghost no-print" id="print-btn" style="display:none">印刷</button>
+</div>
+
+<div id="results"></div>
+
+</main>
+
+<script>
+"use strict";
+/* ============ 定数・状態 ============ */
+const RANKS = ["A+","A","B+","B","C+","C","D+","D","E+","E"]; // 強い順
+// 全日本かるた協会サイト掲載のかるた会一覧(都道府県別)
+const CLUBS=[["北海道",["函館白妙会","北海道やよい会","北海道大学かるた会","旭川上の句競技かるた会","札幌六華会"]],["青森県",["青森かるた会"]],["岩手県",["二戸かるた会","水沢かるた会","盛岡みちのく会"]],["秋田県",["秋田このはな会","秋田中央かるた会","秋田大学かるた会","秋田県高等学校文化連盟","花輪かるた会"]],["宮城県",["仙台中田かるた会","仙台市役所かるた部","仙台鵲会","宮城学院中高かるた会","宮城桜会","宮城県高文連","東北大学かるた会"]],["山形県",["山形かすみかるた会","米沢かるた会","酒田かるた会","鶴岡かるた若葉会"]],["福島県",["安積黎明かるた部","福島県かるた協会","福島葵会"]],["茨城県",["つくばねかるた会","取手聖徳かるた会","常総学院かるた会","水戸かるた会","筑波大学歌留多部","茨城中高かるた会","茨城大学競技かるた会","茨城県高等学校文化連盟","鉾田一かるた会"]],["栃木県",["宇都宮かるた会","宇都宮大学かるた会","小山かるた会","栃木県高等学校文化連盟","清林寺かるた会","足利百人一首の会","那須かるた会","黒磯いぶき会"]],["群馬県",["前橋かるた会","新田かるた会","群馬大学かるた会","群馬県高等学校文化連盟","高崎かるた会"]],["埼玉県",["あけのほし","ちはやふる富士見","埼玉むさしの会","埼玉大学かるた会","埼玉県高等学校文化連盟","大宮さくら会","彩雲かるた会","日高クラブ","朝霞かるた会","瀬をはやみ会","獨協かるた会"]],["千葉県",["千葉しらつゆ会","千葉大学かるた会","千葉漣かるた会","千葉県かるた協会","千葉県高等学校文化連盟","国府台女子学院かるた会","市川学園かるた会","成田附属中学・高校かるた会","東葛飾かるた会","柏かるた会","浦安望海かるた会","渋谷幕張中学高校かるた会","理科大かるた会","麗澤中高かるた会"]],["東京都",["いぶき山かるた会","かみつれかるた会","かるたクラブよつば","ことのは会","ゆらのと会","一橋大学かるた会","上砂百人一首かるた会","下町かるた会","世田谷子どもぶんか村かるた会","中央かるた会","二松学舎大学舞札","共立かるた会","十文字かるた会","千代田かるた会","南多摩かるた会","品川八潮かるた会","四ツ谷いろはかるた会","國學院大學かるた会","城北学園百人一首部","城東かるた会","多摩川かるた会","大妻多摩かるた会","天津乙女の会","学習院大学かるた会","安田かるた会","専修大学かるた会","巣鴨学園かるた会","帝京大学中学高等学校競技かるた部","府中白妙会","恵比寿有明会","慶應かるた会","日本大学かるた会","日本女子大学かるた会","日野百人一首の会","早稲田大学かるた会","明星大学かるた会","明治大学かるた会","暁星かるた会","杉並かるた会","東京吉野会","東京外国語大学かるた会","東京大学かるた会","東京学芸大学かるた会","東京家政大学かるた会","東京明静会","東京東会","東京科学大学かるた会","東京農工大学かるた会","東京都立大学かるた会","東京都高等学校文化連盟","東京靖空会","東洋大学かるた会","桜修館かるた会","法政大学かるた会","海原かるた会","海城かるた会","滝野川かるた会","獅子猫かるた会","白妙会","白鷗かるた会","目白かるた塾","秋川かるた会","穎明館かるた会","立教大学かるた会","筑波大学附属中学・高校かるた会","結びつくかるた会","練馬かるた会","調布かるたクラブ","開成かるた会","関東第一かるた会","雲隠れ会","青山学院大学かるた会","青稜かるた会","駒場かるた会"]],["神奈川県",["さがみ野会","さわやかるた会","ひさかた会","をだまき会","万騎が原かるた会","中央大学附属横浜中学・高等学校","伊勢原みちのく会","小田原かささぎ会","川崎かるた会","慶應湘南藤沢かるた会","春音会","桐光学園かるた会","横国かるた会","横浜市立大学かるた会","横浜隼会","海老名しらざぎ会","湘南かるた会","珈房かるた会","相模女子大学かるた会","神奈川県高等学校文化連盟","茅ヶ崎さざなみ会","藤沢かるた会","鎌倉山かるた会","防衛大学校かるた会","鶴(たづ)の会"]],["富山県",["富山かたかご会"]],["石川県",["石川かるた会"]],["福井県",["福井渚会"]],["山梨県",["山梨はやて会"]],["長野県",["信州かるた会"]],["新潟県",["新潟白雪会"]],["岐阜県",["岐阜かるた会"]],["愛知県",["名古屋かるた会","名古屋大学かるた会","愛知県高等学校文化連盟","豊田かるた会"]],["三重県",["三重若菜会"]],["静岡県",["三島せせらぎ会","大井川清流会","富士かるた会","富士高百人一首部","沼東香陵会","沼津かるた会","浜松かるた会","浜松北高さしも会","磐田南高はぐま会","静岡大学かるた会","静岡東高百人一首部","静岡葵かるた会","静岡雙葉かるた会","高嶺会"]],["滋賀県",["大津あきのた会","日野三笠会","甲賀かるた会","近江神宮かるた会"]],["京都府",["京都かぜそよぐ会","京都大学かるた会","京都小倉かるた会","同志社かるた会","水無瀬つばさ会","立命館大学かるた会"]],["大阪府",["大阪なにはえ会","大阪大学かるた会","大阪暁会","東大阪かるた会"]],["兵庫県",["兵庫県かるた協会","兵庫県高等学校文化連盟","神戸大学かるた会","神戸田子の浦会","篠山かるた会","須磨千鳥かるた会"]],["奈良県",["奈良かるた会"]],["和歌山県",["和歌山かるた会"]],["岡山県",["吉備の国かるた会","岡山大学かるた会"]],["鳥取県",["鳥取万葉かるた会"]],["広島県",["呉かるた会","広島紅葉かるた会","美山会","若鯉KC"]],["島根県",["島根かるた会"]],["山口県",["山口かるた会"]],["徳島県",["阿波かるた会"]],["香川県",["香川玉藻かるた会","香川高松かるた会"]],["愛媛県",["愛媛かるた会"]],["高知県",["高知かるた会"]],["福岡県",["なみき千早かるた会","ふくはなかるた会","みそひと会","三池よきもの会","久留米かるた会","九州大学かるた会","北九州かるた会","宇美かるた会","福岡なのつかるた会","福岡ゆうつづ会"]],["佐賀県",["佐賀かるた会"]],["長崎県",["長崎清水かるた会"]],["大分県",["大分かるた会"]],["熊本県",["有明会","熊本かるた会","熊本大江かるた会"]],["宮崎県",["宮崎かるた会"]],["鹿児島県",["鹿児島かるた会"]],["沖縄県",["うちなーかるた会","首里杜かるた会"]],["海外・アメリカ",["ニューヨークかるた会","ボストンなかまろ会","ワシントンDCいにしへ会"]],["海外・タイ",["クルンテープかるた会"]],["海外・シンガポール",["星国沖の石かるた会"]],["海外・中国",["上海たきがわ会"]],["海外・ブラジル",["サンパウロめぐりあひ会"]],["海外・フランス",["かるたフランス"]],["海外・その他",["全国大学かるた連盟","関西地区大学かるた連盟"]],["海外・台湾",["台湾かるた会"]],["海外・エジプト",["カイロかるた会"]],["海外・ロシア",["モスクワかるた会"]],["海外・United Kingdom",["ロンドンかるた会"]],["海外・韓国",["韓国かるた会"]],["海外・コロンビア",["メデジンはるた会"]]];
+const STORE_KEY = "karuta_pairing_v2";
+let players = [];          // {id, name, rank, attr}  attr: "" | "現役" | "OBOG"
+let requests = [];         // {aId, bId} 対戦希望
+let ngPairs = [];          // {aId, bId} 対戦NG
+let nextId = 1;
+let lastResult = null;
+let history = {pairs: {}, byes: {}};   // 名前ベースで永続化
+let manualByes = {};       // 手動の抜け指定 {回戦番号: [playerId,...]}
+let fixedRounds = [];      // 確定済みの回戦 [{round, byes:[snap,...], pairs:[[snap,snap],...]}]
+let storageOk = true;
+
+/* ============ ユーティリティ ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nameKey = (x, y) => x < y ? x + "|" + y : y + "|" + x;
+const rankIdx = r => RANKS.indexOf(r);
+const rankClass = r => "rank-" + r.replace("+", "p");
+const byId = id => players.find(p => p.id === id);
+const useHistory = () => $("use-history").checked;
+const obogMode = () => $("obog-mode").checked;
+const snap = p => ({name: p.name, rank: p.rank, attr: p.attr || "", club: p.club || ""});
+const clubTag = p => (clubMode() && p.club) ? '<span class="club-tag">' + esc(p.club) + '</span>' : '';
+const badge = p => '<span class="rank-badge ' + rankClass(p.rank) + '">' + esc(p.rank) + '</span>';
+const attrTag = p => p.attr ? '<span class="attr-tag attr-' + p.attr + '">' + (p.attr === "OBOG" ? "OB" : p.attr) + '</span>' : '';
+const rankOptions = () => RANKS.map(r => '<option value="' + r + '"' + (r === "C" ? " selected" : "") + '>' + r + '級</option>').join("");
+
+/* ============ 保存と復元 ============ */
+function serializeResult(res){
+  if(!res) return null;
+  return {schedule: res.schedule, pendingReqs: res.pendingReqs,
+          ngKeys: [...res.ngSet], committed: !!res.committed};
+}
+function reviveResult(d){
+  if(!d || !Array.isArray(d.schedule)) return null;
+  return {schedule: d.schedule, pendingReqs: d.pendingReqs || [],
+          ngSet: new Set(d.ngKeys || []), committed: !!d.committed};
+}
+function saveState(){
+  if(!storageOk) return;
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      players, requests, ngPairs, nextId, history, fixedRounds, manualByes,
+      lastResult: serializeResult(lastResult),
+      rounds: $("rounds-input").value,
+      useHistory: $("use-history").checked,
+      obogMode: $("obog-mode").checked,
+      clubMode: $("club-mode").checked
+    }));
+  }catch(e){ storageOk = false; }
+}
+function applyData(d, opts){
+  opts = opts || {};
+  players = (d.players || []).filter(p => p && p.name && RANKS.includes(p.rank))
+    .map(p => ({id: p.id, name: p.name, rank: p.rank, attr: p.attr || "", club: p.club || ""}));
+  requests = (d.requests || []).filter(r => byId(r.aId) && byId(r.bId));
+  ngPairs = (d.ngPairs || []).filter(r => byId(r.aId) && byId(r.bId));
+  nextId = typeof d.nextId === "number" ? d.nextId : Math.max(0, ...players.map(p => p.id)) + 1;
+  history = (d.history && d.history.pairs) ? d.history : {pairs: {}, byes: {}};
+  if(opts.resetResult){
+    // ファイル読み込み時: 生成前の準備状態で開く(結果・確定は復元しない)
+    fixedRounds = [];
+    lastResult = null;
+  }else{
+    fixedRounds = (Array.isArray(d.fixedRounds) ? d.fixedRounds : []).map(f => ({
+      round: f.round,
+      byes: Array.isArray(f.byes) ? f.byes : (f.bye ? [f.bye] : []),  // 旧形式(単数bye)からの移行
+      pairs: f.pairs
+    }));
+    lastResult = reviveResult(d.lastResult);
+  }
+  manualByes = {};
+  if(d.manualByes && typeof d.manualByes === "object"){
+    Object.keys(d.manualByes).forEach(r => {
+      const ids = (d.manualByes[r] || []).filter(id => byId(id));
+      if(ids.length) manualByes[r] = ids;
+    });
+  }
+  if(d.rounds) $("rounds-input").value = d.rounds;
+  if(typeof d.useHistory === "boolean") $("use-history").checked = d.useHistory;
+  if(typeof d.obogMode === "boolean") $("obog-mode").checked = d.obogMode;
+  if(typeof d.clubMode === "boolean") $("club-mode").checked = d.clubMode;
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) applyData(JSON.parse(raw));
+  }catch(e){ /* 壊れたデータは無視 */ }
+}
+function historyPairCount(){
+  return Object.values(history.pairs).reduce((s, v) => s + v, 0);
+}
+function renderHistoryCount(){
+  $("history-count").textContent = "記録済み " + historyPairCount() + "件" + (storageOk ? "" : "(この環境では自動保存不可)");
+}
+
+/* ============ 選手登録 ============ */
+function addPlayer(name, rank, attr, club){
+  name = name.trim();
+  if(!name) return false;
+  if(players.some(p => p.name === name)){
+    alert("「" + name + "」は既に登録されています。同名の場合は「佐藤2」のように区別してください。");
+    return false;
+  }
+  players.push({id: nextId++, name, rank: RANKS.includes(rank) ? rank : "C", attr: attr || "", club: (club || "").trim()});
+  return true;
+}
+function removePlayer(id){
+  const p = byId(id);
+  if(!p) return;
+  const referenced =
+    requests.some(r => r.aId === id || r.bId === id) ||
+    ngPairs.some(r => r.aId === id || r.bId === id) ||
+    Object.values(manualByes).some(a => a.includes(id));
+  if(referenced && !confirm("「" + p.name + "」を削除すると、この人に関わる対戦希望・NG・抜け指定も一緒に削除されます。よろしいですか?")) return;
+  players = players.filter(p => p.id !== id);
+  requests = requests.filter(r => r.aId !== id && r.bId !== id);
+  ngPairs = ngPairs.filter(r => r.aId !== id && r.bId !== id);
+  Object.keys(manualByes).forEach(r => {
+    manualByes[r] = manualByes[r].filter(x => x !== id);
+    if(!manualByes[r].length) delete manualByes[r];
+  });
+  renderAll();
+}
+function renderPlayers(){
+  const wrap = $("player-list");
+  wrap.innerHTML = "";
+  RANKS.forEach(rank => {
+    const group = players.filter(p => p.rank === rank);
+    if(!group.length) return;
+    const div = document.createElement("div");
+    div.className = "rank-group";
+    div.innerHTML =
+      '<div class="rank-group-title"><span class="rank-badge ' + rankClass(rank) + '">' + esc(rank) + '級</span>' +
+      '<span class="cnt">' + group.length + '名</span></div>' +
+      '<div class="chips">' +
+      group.map(p =>
+        '<span class="chip">' + esc(p.name) + attrTag(p) + clubTag(p) +
+        '<button class="x" data-del="' + p.id + '" aria-label="' + esc(p.name) + 'を削除">×</button></span>'
+      ).join("") + '</div>';
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll("[data-del]").forEach(b =>
+    b.addEventListener("click", () => removePlayer(+b.dataset.del)));
+  $("player-count").textContent = "登録 " + players.length + "名" +
+    (players.length % 2 === 1 && players.length > 0 ? "(奇数:毎試合1名が抜け番)" : "");
+}
+
+/* ============ 人選択コンボボックス(検索+プルダウン両対応) ============ */
+function buildPicker(slot, opts){
+  slot.innerHTML =
+    '<input type="text" class="picker-input" placeholder="' + esc(opts.placeholder || "名前で検索") + '" autocomplete="off">' +
+    '<button type="button" class="picker-toggle" aria-label="一覧から選ぶ">▾</button>' +
+    '<div class="picker-list" style="display:none"></div>';
+  const input = slot.querySelector("input");
+  const toggle = slot.querySelector(".picker-toggle");
+  const list = slot.querySelector(".picker-list");
+  let selectedId = null;
+  const cands = () => opts.candidates();
+  function renderList(q){
+    q = (q || "").trim();
+    const items = cands().filter(p => !q || p.name.includes(q));
+    list.innerHTML = items.length ? items.map(p =>
+      '<button type="button" class="picker-item" data-id="' + p.id + '">' +
+      esc(p.name) + ' <span class="muted">(' + esc(p.rank) + ')</span></button>').join("")
+      : '<div class="picker-empty">該当する選手がいません</div>';
+    list.querySelectorAll(".picker-item").forEach(b =>
+      b.addEventListener("mousedown", e => { e.preventDefault(); choose(+b.dataset.id); }));
+  }
+  function choose(id){
+    const p = byId(id);
+    if(!p) return;
+    hide();
+    if(opts.onPick){ opts.onPick(p); return; }
+    selectedId = id;
+    input.value = p.name;
+  }
+  const show = q => { renderList(q); list.style.display = ""; };
+  const hide = () => { list.style.display = "none"; };
+  input.addEventListener("focus", () => show(input.value));
+  input.addEventListener("input", () => {
+    const exact = cands().find(p => p.name === input.value.trim());
+    selectedId = exact ? exact.id : null;
+    show(input.value);
+  });
+  input.addEventListener("keydown", e => {
+    if(e.key === "Enter" && !e.isComposing && e.keyCode !== 229){
+      e.preventDefault();
+      const exact = cands().find(p => p.name === input.value.trim());
+      if(exact) choose(exact.id);
+    }
+  });
+  toggle.addEventListener("mousedown", e => {
+    e.preventDefault();
+    if(list.style.display === "none"){ input.focus(); show(""); } else hide();
+  });
+  input.addEventListener("blur", () => setTimeout(hide, 150));
+  return {
+    getId(){
+      if(selectedId && byId(selectedId)) return selectedId;
+      const exact = cands().find(p => p.name === input.value.trim());
+      return exact ? exact.id : null;
+    },
+    clear(){ selectedId = null; input.value = ""; }
+  };
+}
+function buildClubPicker(slot){
+  slot.innerHTML =
+    '<input type="text" class="picker-input" placeholder="会を検索 / ▾" autocomplete="off" maxlength="30">' +
+    '<button type="button" class="picker-toggle" aria-label="一覧から選ぶ">▾</button>' +
+    '<div class="picker-list" style="display:none"></div>';
+  const input = slot.querySelector("input");
+  const toggle = slot.querySelector(".picker-toggle");
+  const list = slot.querySelector(".picker-list");
+  function usedClubs(){
+    const s = [...new Set(players.map(p => p.club).filter(Boolean))];
+    return s.sort((a, b) => a.localeCompare(b, "ja"));
+  }
+  function renderList(q){
+    q = (q || "").trim();
+    let html = "";
+    if(!q){
+      const used = usedClubs();
+      if(used.length){
+        html += '<div class="picker-group">登録済みの会</div>' +
+          used.map(c => '<button type="button" class="picker-item" data-v="' + esc(c) + '">' + esc(c) + '</button>').join("");
+      }
+      CLUBS.forEach(([pref, names]) => {
+        html += '<div class="picker-group">' + esc(pref) + '</div>' +
+          names.map(c => '<button type="button" class="picker-item" data-v="' + esc(c) + '">' + esc(c) + '</button>').join("");
+      });
+    }else{
+      const hits = [];
+      usedClubs().forEach(c => { if(c.includes(q)) hits.push([c, "登録済み"]); });
+      CLUBS.forEach(([pref, names]) => names.forEach(c => {
+        if(c.includes(q) && !hits.some(h => h[0] === c)) hits.push([c, pref]);
+      }));
+      html = hits.length ? hits.slice(0, 60).map(([c, pref]) =>
+        '<button type="button" class="picker-item" data-v="' + esc(c) + '">' + esc(c) +
+        ' <span class="muted">(' + esc(pref) + ')</span></button>').join("") : "";
+      if(!hits.some(h => h[0] === q))
+        html = '<div class="picker-note">Enterで「' + esc(q) + '」をそのまま使う</div>' + html;
+      if(!html) html = '<div class="picker-empty">候補なし(そのまま入力できます)</div>';
+    }
+    list.innerHTML = html;
+    list.querySelectorAll(".picker-item").forEach(b =>
+      b.addEventListener("mousedown", e => { e.preventDefault(); input.value = b.dataset.v; hide(); }));
+  }
+  const show = q => { renderList(q); list.style.display = ""; };
+  const hide = () => { list.style.display = "none"; };
+  input.addEventListener("focus", () => show(input.value));
+  input.addEventListener("input", () => show(input.value));
+  input.addEventListener("keydown", e => {
+    if(e.key === "Enter" && !e.isComposing && e.keyCode !== 229){ e.preventDefault(); hide(); }
+  });
+  toggle.addEventListener("mousedown", e => {
+    e.preventDefault();
+    if(list.style.display === "none"){ input.focus(); show(""); } else hide();
+  });
+  input.addEventListener("blur", () => setTimeout(hide, 150));
+  return {
+    getValue(){ return input.value.trim(); },
+    clear(){ input.value = ""; }
+  };
+}
+const pickers = {};
+const clubPickers = {};
+
+/* ============ 希望・NG ============ */
+function renderPairList(listId, arr, isNg){
+  const wrap = $(listId);
+  wrap.innerHTML = "";
+  arr.forEach((r, i) => {
+    const a = byId(r.aId), b = byId(r.bId);
+    if(!a || !b) return;
+    const div = document.createElement("div");
+    div.className = "req-item" + (isNg ? " ng" : "");
+    div.innerHTML = esc(a.name) + '(' + esc(a.rank) + ') <span class="vs">' + (isNg ? "×" : "対") + '</span> ' +
+      esc(b.name) + '(' + esc(b.rank) + ')' +
+      (!isNg && r.round ? ' <span class="flag wish" style="margin-left:4px">第' + r.round + '試合で</span>' : '') +
+      '<button class="x small danger-ghost" style="margin-left:auto" data-i="' + i + '">削除</button>';
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll("[data-i]").forEach(b =>
+    b.addEventListener("click", () => { arr.splice(+b.dataset.i, 1); renderAll(); }));
+}
+function addPairTo(arr, otherArr, aId, bId, label, otherLabel, round){
+  if(!aId || !bId){ alert("2人とも選手を選んでください(名前を入力するか▾で一覧から選択)。"); return; }
+  if(aId === bId){ alert("同じ選手同士は指定できません。"); return; }
+  const k = nameKey(String(aId), String(bId));
+  if(arr.some(r => nameKey(String(r.aId), String(r.bId)) === k)){
+    alert("この組み合わせは既に" + label + "に入っています。"); return;
+  }
+  if(otherArr.some(r => nameKey(String(r.aId), String(r.bId)) === k)){
+    alert("この組み合わせは" + otherLabel + "に入っています。先にそちらを削除してください。"); return;
+  }
+  const item = {aId, bId};
+  if(round) item.round = round;
+  arr.push(item);
+  renderAll();
+}
+// 名前1つを登録済み選手のidに解決(完全一致のみ)。見つからなければnull
+function resolvePlayerName(name){
+  const p = players.find(pl => pl.name === name);
+  return p ? p.id : null;
+}
+// 一括追加: textの各行を解析してarrに追加。結果サマリを返す
+function bulkAddPairs(text, arr, otherArr, label, otherLabel, allowRound){
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  let added = 0;
+  const errUnknown = [];   // 不明な名前を含む行
+  const errFormat = [];    // 2人に解釈できない行
+  const errDup = [];       // 既に登録済み/相反リストにある
+  lines.forEach(line => {
+    let tokens = line.split(/[\s,、,]+/).map(s => s.trim()).filter(Boolean);
+    let round = null;
+    // 試合指定(行末の数字)。希望のみ有効
+    if(allowRound && tokens.length >= 3 && /^\d+$/.test(tokens[tokens.length - 1])){
+      round = parseInt(tokens.pop(), 10);
+    }
+    if(tokens.length !== 2){ errFormat.push(line); return; }
+    const [n1, n2] = tokens;
+    const id1 = resolvePlayerName(n1), id2 = resolvePlayerName(n2);
+    if(id1 === null || id2 === null){
+      const miss = [id1 === null ? n1 : null, id2 === null ? n2 : null].filter(Boolean);
+      errUnknown.push(line + "(未登録:" + miss.join("・") + ")");
+      return;
+    }
+    if(id1 === id2){ errFormat.push(line + "(同じ選手)"); return; }
+    const k = nameKey(String(id1), String(id2));
+    if(arr.some(r => nameKey(String(r.aId), String(r.bId)) === k)){ errDup.push(line); return; }
+    if(otherArr.some(r => nameKey(String(r.aId), String(r.bId)) === k)){
+      errDup.push(line + "(" + otherLabel + "に存在)"); return;
+    }
+    const item = {aId: id1, bId: id2};
+    if(round) item.round = round;
+    arr.push(item);
+    added++;
+  });
+  renderAll();
+  // 結果メッセージ
+  let msg = added + "件を" + label + "に追加しました。";
+  const skipped = errUnknown.length + errFormat.length + errDup.length;
+  if(skipped){
+    msg += "\n\nスキップした行(" + skipped + "):";
+    if(errUnknown.length) msg += "\n【一覧にない名前】\n" + errUnknown.join("\n");
+    if(errFormat.length) msg += "\n【2人に読み取れない】\n" + errFormat.join("\n");
+    if(errDup.length) msg += "\n【すでに登録済み】\n" + errDup.join("\n");
+  }
+  alert(msg);
+  return added;
+}
+
+function renderReqRoundOptions(){
+  const sel = $("req-round");
+  const cur = sel.value;
+  const rounds = clampRounds();
+  let html = '<option value="">試合指定なし</option>';
+  for(let r = 1; r <= rounds; r++) html += '<option value="' + r + '">第' + r + '試合で</option>';
+  sel.innerHTML = html;
+  if(cur && +cur <= rounds) sel.value = cur;
+}
+
+/* ============ 抜け番設定 ============ */
+function renderByeConfig(){
+  const wrap = $("bye-config");
+  const rounds = clampRounds();
+  if(players.length === 0){
+    wrap.innerHTML = '<div class="empty-note">選手を登録してください。</div>';
+    return;
+  }
+  let html = "";
+  for(let r = 1; r <= rounds; r++){
+    if(r <= fixedRounds.length){
+      const f = fixedRounds[r - 1];
+      html += '<div class="bye-row"><span class="bye-label">第' + r + '試合</span><span class="fixed-mark">確定済み' +
+        (f.byes && f.byes.length ? '(抜け:' + f.byes.map(b => esc(b.name)).join("・") + ')' : '') + '</span></div>';
+      continue;
+    }
+    const chosen = (manualByes[r] || []).map(byId).filter(Boolean);
+    const rest = players.filter(p => !(manualByes[r] || []).includes(p.id));
+    html += '<div class="bye-row"><span class="bye-label">第' + r + '試合</span>' +
+      chosen.map(p => '<span class="chip bye-chip">' + esc(p.name) +
+        '<button class="x" data-bye-del="' + r + ':' + p.id + '" aria-label="抜け指定を解除">×</button></span>').join("") +
+      (rest.length ? '<span class="picker" data-bye-picker="' + r + '"></span>' : '') +
+      '</div>';
+  }
+  html += '<div class="hint">名前を入力すると候補が出ます(完全一致ならEnterでも追加可)。▾を押すと一覧から選べます。指定した人はその試合に組まれません(何人でも可)。残りが奇数のときは、抜け回数が均等になるように自動でもう1人が抜け番になります。</div>';
+  wrap.innerHTML = html;
+  wrap.querySelectorAll("[data-bye-del]").forEach(b =>
+    b.addEventListener("click", () => {
+      const [r, id] = b.dataset.byeDel.split(":").map(Number);
+      manualByes[r] = (manualByes[r] || []).filter(x => x !== id);
+      if(!manualByes[r].length) delete manualByes[r];
+      renderByeConfig(); saveState();
+    }));
+  wrap.querySelectorAll("[data-bye-picker]").forEach(slot => {
+    const r = +slot.dataset.byePicker;
+    buildPicker(slot, {
+      placeholder: "＋抜ける人(名前で検索 / ▾)",
+      candidates: () => players.filter(p => !(manualByes[r] || []).includes(p.id)),
+      onPick: p => {
+        if(!manualByes[r]) manualByes[r] = [];
+        if(!manualByes[r].includes(p.id)) manualByes[r].push(p.id);
+        saveState();
+        renderByeConfig();
+        const ni = document.querySelector('[data-bye-picker="' + r + '"] input');
+        if(ni) ni.focus();
+      }
+    });
+  });
+}
+function clampRounds(){
+  let v = parseInt($("rounds-input").value, 10);
+  if(isNaN(v) || v < 1) v = 1;
+  if(v > 20) v = 20;
+  return v;
+}
+
+/* ============ 確定(途中からの組み直し) ============ */
+function renderFixedBanner(){
+  const wrap = $("fixed-banner-area");
+  if(!fixedRounds.length){ wrap.innerHTML = ""; return; }
+  wrap.innerHTML = '<div class="fixed-banner">第' + fixedRounds.length + '試合まで確定済みです。' +
+    'メンバーや設定を変更して「組み合わせを作成」を押すと、第' + (fixedRounds.length + 1) +
+    '試合以降だけが組み直されます(確定分との再戦は避けます)。' +
+    '<button class="ghost small" id="unfix-btn">確定を解除</button></div>';
+  $("unfix-btn").addEventListener("click", () => {
+    if(confirm("確定を解除しますか?次回の作成では全試合が組み直されます。")){
+      fixedRounds = [];
+      renderAll();
+    }
+  });
+}
+function fixUpTo(n){
+  if(!lastResult) return;
+  fixedRounds = lastResult.schedule.slice(0, n).map(rd => ({
+    round: rd.round,
+    byes: (rd.byes || []).map(snap),
+    pairs: rd.pairs.map(([a, b]) => [snap(a), snap(b)])
+  }));
+  renderAll();
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+
+/* ============ 組み合わせアルゴリズム ============ */
+function buildNgSet(){
+  const s = new Set();
+  ngPairs.forEach(r => {
+    const a = byId(r.aId), b = byId(r.bId);
+    if(a && b) s.add(nameKey(a.name, b.name));
+  });
+  return s;
+}
+function pairCost(a, b, played, pendingReqs, ngSet, roundNo){
+  let c = 0;
+  const k = nameKey(a.name, b.name);
+  if(ngSet.has(k)) c += 2000000;                     // NGは最重(事実上組まない)
+  c += (played[k] || 0) * 100000;                    // 同日・確定分との再戦
+  if(useHistory()) c += (history.pairs[k] || 0) * 60000;  // 過去の練習での対戦
+  if(clubMode() && a.club && b.club && a.club === b.club)
+    c += 20000;                                      // 同じ会同士を回避(級差・属性より重い)
+  if(obogMode() && a.attr && b.attr && a.attr === b.attr)
+    c += 10000;                                      // OBOG会モード: 同属性ペナルティ(級差より重い)
+  const d = Math.abs(rankIdx(a.rank) - rankIdx(b.rank));
+  c += d * d * 100;                                  // 級差ペナルティ(近い級を優先)
+  const req = pendingReqs.find(q => !q.done && nameKey(q.aName, q.bName) === k);
+  if(req){
+    if(req.tRound == null || req.tRound === roundNo)
+      c -= 50000;                                    // 未消化の希望(指定なし or 指定試合)は強く優先
+    else if(roundNo < req.tRound)
+      c += 20000;                                    // 指定試合より前には当てない(取っておく)
+  }
+  return c;
+}
+function greedyMatch(avail, played, reqs, ngSet, roundNo){
+  const pool = avail.slice();
+  for(let i = pool.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const pairs = [];
+  // 未消化の希望ペアを初期配置で先に組む(NG・再戦でない場合のみ。不利なら後の最適化で解消される)
+  reqs.filter(q => !q.done && (q.tRound == null || q.tRound === roundNo)).forEach(q => {
+    const i = pool.findIndex(p => p.name === q.aName);
+    const j = pool.findIndex(p => p.name === q.bName);
+    if(i < 0 || j < 0) return;
+    const k = nameKey(q.aName, q.bName);
+    if(ngSet.has(k) || (played[k] || 0) > 0) return;
+    const a = pool[i], b = pool[j];
+    pool.splice(Math.max(i, j), 1);
+    pool.splice(Math.min(i, j), 1);
+    pairs.push([a, b]);
+  });
+  while(pool.length){
+    const a = pool.shift();
+    let bestI = 0, bestC = Infinity;
+    for(let i = 0; i < pool.length; i++){
+      const c = pairCost(a, pool[i], played, reqs, ngSet, roundNo);
+      if(c < bestC){ bestC = c; bestI = i; }
+    }
+    pairs.push([a, pool.splice(bestI, 1)[0]]);
+  }
+  return pairs;
+}
+function improve(pairs, played, reqs, ngSet, roundNo){
+  let improved = true, guard = 0;
+  while(improved && guard++ < 200){
+    improved = false;
+    for(let i = 0; i < pairs.length; i++){
+      for(let j = i + 1; j < pairs.length; j++){
+        const [a, b] = pairs[i], [c, d] = pairs[j];
+        const cur = pairCost(a, b, played, reqs, ngSet, roundNo) + pairCost(c, d, played, reqs, ngSet, roundNo);
+        const alt1 = pairCost(a, c, played, reqs, ngSet, roundNo) + pairCost(b, d, played, reqs, ngSet, roundNo);
+        const alt2 = pairCost(a, d, played, reqs, ngSet, roundNo) + pairCost(b, c, played, reqs, ngSet, roundNo);
+        if(alt1 < cur && alt1 <= alt2){
+          pairs[i] = [a, c]; pairs[j] = [b, d]; improved = true;
+        }else if(alt2 < cur){
+          pairs[i] = [a, d]; pairs[j] = [b, c]; improved = true;
+        }
+      }
+    }
+  }
+  return pairs;
+}
+function bestMatching(avail, played, reqs, ngSet, roundNo){
+  let best = null, bestC = Infinity;
+  const restarts = Math.min(40, 10 + avail.length);
+  for(let k = 0; k < restarts; k++){
+    let pairs = greedyMatch(avail, played, reqs, ngSet, roundNo);
+    pairs = improve(pairs, played, reqs, ngSet, roundNo);
+    const c = pairs.reduce((s, [a, b]) => s + pairCost(a, b, played, reqs, ngSet, roundNo), 0);
+    if(c < bestC){ bestC = c; best = pairs; }
+  }
+  return best || [];
+}
+function generateSchedule(){
+  const rounds = clampRounds();
+  const played = {};                 // nameKey → 回数(確定分を含む当日分)
+  const byeCount = {};               // 名前 → 当日の抜け回数
+  players.forEach(p => byeCount[p.name] = 0);
+  const ngSet = buildNgSet();
+  const pendingReqs = requests.map(r => {
+    const a = byId(r.aId), b = byId(r.bId);
+    return {aName: a.name, bName: b.name, tRound: r.round || null, done: false, round: null};
+  });
+  const schedule = [];
+
+  // 確定済みの回戦を組み込む
+  fixedRounds.forEach(f => {
+    f.pairs.forEach(([a, b]) => {
+      const k = nameKey(a.name, b.name);
+      played[k] = (played[k] || 0) + 1;
+      const q = pendingReqs.find(q => !q.done && nameKey(q.aName, q.bName) === k &&
+        (q.tRound == null || q.tRound === f.round));
+      if(q){ q.done = true; q.round = f.round; }
+    });
+    (f.byes || []).forEach(b => { if(byeCount[b.name] !== undefined) byeCount[b.name]++; });
+    schedule.push({round: f.round, byes: f.byes || [], pairs: f.pairs, fixed: true});
+  });
+
+  for(let r = fixedRounds.length + 1; r <= rounds; r++){
+    // 手動指定の抜けを反映
+    const manual = (manualByes[r] || []).map(byId).filter(Boolean);
+    let avail = players.filter(p => !manual.some(m => m.id === p.id));
+    const byes = manual.slice();
+    // 残りが奇数なら自動でもう1人(抜け回数が均等になるように)
+    if(avail.length % 2 === 1){
+      const pendingNames = new Set();
+      pendingReqs.filter(q => !q.done && (q.tRound == null || q.tRound === r))
+        .forEach(q => { pendingNames.add(q.aName); pendingNames.add(q.bName); });
+      const score = p => byeCount[p.name] * 100000 +
+        (pendingNames.has(p.name) ? 1000 : 0) +
+        (useHistory() ? (history.byes[p.name] || 0) : 0);
+      const min = Math.min(...avail.map(score));
+      const cands = avail.filter(p => score(p) === min);
+      const extra = cands[Math.floor(Math.random() * cands.length)];
+      byes.push(extra);
+      avail = avail.filter(p => p.id !== extra.id);
+    }
+    byes.forEach(b => { if(byeCount[b.name] !== undefined) byeCount[b.name]++; });
+    const pairs = bestMatching(avail, played, pendingReqs, ngSet, r);
+    pairs.forEach(([a, b]) => {
+      const k = nameKey(a.name, b.name);
+      played[k] = (played[k] || 0) + 1;
+      const q = pendingReqs.find(q => !q.done && nameKey(q.aName, q.bName) === k &&
+        (q.tRound == null || q.tRound === r));
+      if(q){ q.done = true; q.round = r; }
+    });
+    schedule.push({round: r, byes: byes.map(snap), pairs, fixed: false});
+  }
+  return {schedule, pendingReqs, ngSet};
+}
+
+/* ============ 結果表示 ============ */
+function renderResults(result, skipScroll){
+  const wrap = $("results");
+  wrap.innerHTML = "";
+  const seen = {};
+  const unfulfilled = result.pendingReqs.filter(q => !q.done);
+  const ngViolations = [];
+  result.schedule.forEach(rd => rd.pairs.forEach(([a, b]) => {
+    if(result.ngSet.has(nameKey(a.name, b.name))) ngViolations.push(a.name + "×" + b.name);
+  }));
+
+  let banner = "";
+  if(ngViolations.length){
+    banner += '<div class="warn-banner">対戦NGの組み合わせが避けられませんでした:' +
+      ngViolations.map(esc).join("、") + '(人数や試合数の関係で他に組みようがない状態です)</div>';
+  }
+  if(requests.length){
+    if(unfulfilled.length){
+      const over = unfulfilled.filter(q => q.tRound && q.tRound > result.schedule.length);
+      banner += '<div class="warn-banner">消化できなかった対戦希望:' +
+        unfulfilled.map(q => esc(q.aName) + '×' + esc(q.bName) + (q.tRound ? '(第' + q.tRound + '試合指定)' : '')).join("、") +
+        (over.length ? '。指定した試合が試合数を超えている希望があります。' : '') +
+        '(試合数・抜け番・NGの指定を見直してください)</div>';
+    }else{
+      banner += '<div class="ok-banner">対戦希望はすべて組み込みました(' + result.pendingReqs.length + '件)。</div>';
+    }
+  }
+  wrap.insertAdjacentHTML("beforeend", banner);
+
+  result.schedule.forEach(round => {
+    const sec = document.createElement("section");
+    sec.className = "round-card";
+    const isNext = !round.fixed && round.round === fixedRounds.length + 1 && fixedRounds.length > 0;
+    if(isNext) sec.classList.add("next-round");
+    let html = '<div class="round-head"><h3>第' + round.round + '試合</h3>' +
+      (round.fixed ? '<span class="fixed-tag">確定</span>' : '') +
+      (isNext ? '<span class="next-tag">次の試合</span>' : '') +
+      (round.byes && round.byes.length ? '<span class="bye-note">抜け:<b>' +
+        round.byes.map(b => esc(b.name) + '(' + esc(b.rank) + (clubMode() && b.club ? '・' + esc(b.club) : '') + ')').join("、") + '</b></span>' : '') +
+      (!round.fixed ? '<button class="ghost small fix-here no-print" data-fix="' + round.round + '">ここまで確定</button>' : '') +
+      '</div><div class="matches">';
+    const sorted = round.pairs.slice().sort((p, q) =>
+      Math.min(rankIdx(p[0].rank), rankIdx(p[1].rank)) - Math.min(rankIdx(q[0].rank), rankIdx(q[1].rank)));
+    sorted.forEach(([a, b]) => {
+      const k = nameKey(a.name, b.name);
+      const isRepeat = (seen[k] || 0) >= 1;
+      seen[k] = (seen[k] || 0) + 1;
+      const pastRepeat = useHistory() && (history.pairs[k] || 0) >= 1;
+      const isNg = result.ngSet.has(k);
+      const isWish = result.pendingReqs.some(q => q.done && q.round === round.round && nameKey(q.aName, q.bName) === k);
+      const cross = a.rank !== b.rank;
+      const crossAttr = obogMode() && a.attr && b.attr && a.attr !== b.attr;
+      const sameClub = clubMode() && a.club && b.club && a.club === b.club;
+      let flags = "";
+      if(isWish) flags += '<span class="flag wish">希望対戦</span>';
+      if(crossAttr) flags += '<span class="flag obog">現役×OBOG</span>';
+      if(sameClub) flags += '<span class="flag cross">同じ会(' + esc(a.club) + ')</span>';
+      if(cross) flags += '<span class="flag cross">' + esc(a.rank) + '級×' + esc(b.rank) + '級</span>';
+      if(isNg) flags += '<span class="flag repeat">NG対戦(要確認)</span>';
+      if(isRepeat) flags += '<span class="flag repeat">再戦</span>';
+      else if(pastRepeat) flags += '<span class="flag repeat">過去に対戦あり</span>';
+      html += '<div class="match">' +
+        '<div class="player-card">' + badge(a) + '<span class="name">' + esc(a.name) + '</span>' + attrTag(a) + clubTag(a) + '</div>' +
+        '<div class="center-line"><span>対</span></div>' +
+        '<div class="player-card right">' + badge(b) + '<span class="name">' + esc(b.name) + '</span>' + attrTag(b) + clubTag(b) + '</div>' +
+        (flags ? '<div class="match-flags">' + flags + '</div>' : '') +
+        '</div>';
+    });
+    html += '</div>';
+    sec.innerHTML = html;
+    wrap.appendChild(sec);
+  });
+
+  // 選手別まとめ(現在登録中の選手のみ)
+  const sec = document.createElement("section");
+  let rows = "";
+  players.slice().sort((a, b) => rankIdx(a.rank) - rankIdx(b.rank) || a.name.localeCompare(b.name, "ja"))
+    .forEach(p => {
+      const opps = [];
+      result.schedule.forEach(rd => {
+        if((rd.byes || []).some(b => b.name === p.name)){ opps.push("第" + rd.round + ":抜け"); return; }
+        const m = rd.pairs.find(([a, b]) => a.name === p.name || b.name === p.name);
+        if(m){
+          const o = m[0].name === p.name ? m[1] : m[0];
+          opps.push("第" + rd.round + ":" + esc(o.name));
+        }
+      });
+      rows += '<tr><td>' + badge(p) + ' ' + esc(p.name) + attrTag(p) + clubTag(p) + '</td>' +
+        '<td class="opps">' + (opps.join(" / ") || "-") + '</td></tr>';
+    });
+  sec.innerHTML = '<div class="sec-head"><span class="sec-tag">一覧</span><h2>選手別の対戦一覧</h2></div>' +
+    '<div class="sec-body" style="overflow-x:auto"><table class="summary-table">' +
+    '<tr><th>選手</th><th>対戦相手</th></tr>' + rows + '</table></div>';
+  wrap.appendChild(sec);
+
+  // 操作バー: 確定 / 出力 / 履歴保存
+  const bar = document.createElement("section");
+  bar.className = "no-print";
+  bar.innerHTML =
+    '<div class="sec-head"><span class="sec-tag">操作</span><h2>この結果の出力・保存</h2></div>' +
+    '<div class="sec-body">' +
+    '<div class="usage"><b>使い方</b>:途中でメンバーが増減するときは、消化済みの試合の右上にある「ここまで確定」を押してから選手登録を変更し、「続きを作成」を押してください。確定分はそのまま残り、続きだけが組み直されます。CSVや.xlsxはExcel・Googleスプレッドシートでそのまま開けます。</div>' +
+    '<div class="row" style="margin-top:12px">' +
+    '<button class="ghost small" id="copy-btn">表をコピー(貼り付け用)</button>' +
+    '<button class="ghost small" id="xlsx-btn">Excel形式(.xlsx)</button>' +
+    '<button class="ghost small" id="csv-btn">CSV</button>' +
+    '<button class="ghost small" id="txt-btn">テキスト</button>' +
+    '<button id="commit-btn" class="small" style="background:var(--tatami)">この結果を対戦履歴に保存</button>' +
+    '</div>' +
+    '<div class="hint">Googleスプレッドシートへは「表をコピー」して貼り付けるのが一番速く確実です。.xlsxはGoogleドライブにアップすればそのまま開けます。組んだ対戦を保存して後で呼び出したいときは、「記録」欄の「ファイルに書き出し」を使ってください(選手・NG・希望ごと保存され、読み込み時にこの対戦を呼び出すか選べます)。</div>' +
+    '<div class="hint">履歴への保存は、実際に使う組み合わせが決まったあと1日1回だけ押してください。</div>' +
+    '</div>';
+  wrap.appendChild(bar);
+  wrap.querySelectorAll(".fix-here").forEach(b =>
+    b.addEventListener("click", () => {
+      const n = +b.dataset.fix;
+      fixUpTo(n);
+      alert("第" + n + "試合までを確定しました。メンバーや抜け指定を変えたら「続きを作成」を押してください。第" + (n + 1) + "試合以降だけが組み直されます。");
+    }));
+  $("copy-btn").addEventListener("click", e => copyTable(result, e.target));
+  $("xlsx-btn").addEventListener("click", () => exportXlsx(result));
+  $("csv-btn").addEventListener("click", () => exportCsv(result));
+  $("txt-btn").addEventListener("click", () => exportTxt(result));
+  if(result.committed){
+    $("commit-btn").textContent = "履歴に保存済み";
+    $("commit-btn").disabled = true;
+  }
+  $("commit-btn").addEventListener("click", () => {
+    commitHistory(result);
+    result.committed = true;
+    saveState();
+    $("commit-btn").textContent = "履歴に保存しました";
+    $("commit-btn").disabled = true;
+  });
+
+  $("regen-btn").style.display = "";
+  $("print-btn").style.display = "";
+  $("nav-result").style.display = "";
+  if(!skipScroll) wrap.scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+/* ============ CSV / テキスト出力 ============ */
+function download(filename, content, mime){
+  const blob = new Blob([content], {type: mime});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function stamp(){
+  const d = new Date();
+  return d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+}
+function csvCell(s){
+  s = String(s);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportCsv(result){
+  const csv = "\uFEFF" + resultRows(result).map(r => r.map(csvCell).join(",")).join("\r\n");
+  download("対戦組_" + stamp() + ".csv", csv, "text/csv;charset=utf-8");
+}
+function exportTxt(result){
+  let out = "競技かるた 対戦組(" + new Date().toLocaleDateString("ja-JP") + ")\n";
+  out += "=".repeat(30) + "\n";
+  result.schedule.forEach(rd => {
+    out += "\n【第" + rd.round + "試合】" + (rd.fixed ? "(確定済み)" : "") + "\n";
+    const lab = p => p.name + "(" + p.rank + (clubMode() && p.club ? "・" + p.club : "") + ")";
+    rd.pairs.forEach(([a, b]) => { out += "  " + lab(a) + " 対 " + lab(b) + "\n"; });
+    if(rd.byes && rd.byes.length) out += "  抜け: " + rd.byes.map(lab).join("、") + "\n";
+  });
+  download("対戦組_" + stamp() + ".txt", out, "text/plain;charset=utf-8");
+}
+
+/* ============ XLSX書き出し(依存ライブラリなし) ============ */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(entries){
+  // 無圧縮zip(entries: [{name, text}])
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  entries.forEach(e => {
+    const nameB = enc.encode(e.name);
+    const data = enc.encode(e.text);
+    const crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);          // version needed
+    lh.setUint16(6, 0x0800, true);      // UTF-8 flag
+    lh.setUint16(8, 0, true);           // store
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, data.length, true);
+    lh.setUint32(22, data.length, true);
+    lh.setUint16(26, nameB.length, true);
+    parts.push(new Uint8Array(lh.buffer), nameB, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, data.length, true);
+    ch.setUint32(24, data.length, true);
+    ch.setUint16(28, nameB.length, true);
+    ch.setUint32(42, offset, true);
+    central.push({header: new Uint8Array(ch.buffer), name: nameB});
+    offset += 30 + nameB.length + data.length;
+  });
+  const cdStart = offset;
+  central.forEach(c => { parts.push(c.header, c.name); offset += 46 + c.name.length; });
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, entries.length, true);
+  eocd.setUint16(10, entries.length, true);
+  eocd.setUint32(12, offset - cdStart, true);
+  eocd.setUint32(16, cdStart, true);
+  parts.push(new Uint8Array(eocd.buffer));
+  return new Blob(parts, {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+const xmlEsc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function colRef(i){ let s = ""; i++; while(i){ s = String.fromCharCode(65 + (i - 1) % 26) + s; i = Math.floor((i - 1) / 26); } return s; }
+function buildXlsx(rows, sheetName){
+  const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
+    rows.map((row, ri) =>
+      '<row r="' + (ri + 1) + '">' +
+      row.map((cell, ci) =>
+        '<c r="' + colRef(ci) + (ri + 1) + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(cell) + '</t></is></c>'
+      ).join("") + '</row>'
+    ).join("") + '</sheetData></worksheet>';
+  return zipStore([
+    {name: "[Content_Types].xml", text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'},
+    {name: "_rels/.rels", text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name: "xl/workbook.xml", text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="' + xmlEsc(sheetName || "対戦組") + '" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+    {name: "xl/_rels/workbook.xml.rels", text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'},
+    {name: "xl/worksheets/sheet1.xml", text: sheetXml}
+  ]);
+}
+function resultRows(result){
+  const rows = [["回戦","選手1","級1","属性1","会1","選手2","級2","属性2","会2","備考"]];
+  result.schedule.forEach(rd => {
+    rd.pairs.forEach(([a, b]) => {
+      const k = nameKey(a.name, b.name);
+      const memo = [];
+      if(result.pendingReqs.some(q => q.done && q.round === rd.round && nameKey(q.aName, q.bName) === k)) memo.push("希望対戦");
+      if(a.club && b.club && a.club === b.club) memo.push("同じ会");
+      if(a.rank !== b.rank) memo.push("級またぎ");
+      rows.push(["第" + rd.round + "試合", a.name, a.rank, a.attr || "", a.club || "",
+                 b.name, b.rank, b.attr || "", b.club || "", memo.join("・")]);
+    });
+    (rd.byes || []).forEach(b => rows.push(["第" + rd.round + "試合", b.name, b.rank, b.attr || "", b.club || "",
+                                            "", "", "", "", "抜け番"]));
+  });
+  return rows;
+}
+function exportXlsx(result){
+  const blob = buildXlsx(resultRows(result), "対戦組");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "対戦組_" + stamp() + ".xlsx";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+async function copyTable(result, btn){
+  const tsv = resultRows(result).map(r => r.join("\t")).join("\n");
+  let ok = false;
+  try{
+    await navigator.clipboard.writeText(tsv);
+    ok = true;
+  }catch(e){
+    const ta = document.createElement("textarea");
+    ta.value = tsv; document.body.appendChild(ta); ta.select();
+    try{ ok = document.execCommand("copy"); }catch(e2){}
+    ta.remove();
+  }
+  if(btn){
+    btn.textContent = ok ? "コピーしました!" : "コピー失敗";
+    setTimeout(() => btn.textContent = "表をコピー(貼り付け用)", 2000);
+  }
+  if(ok) alert("表をコピーしました。Googleスプレッドシートを開き、A1セルを選んで貼り付けてください。");
+}
+
+/* ============ XLSX/CSV読み込み(対戦表の取り込み) ============ */
+const xmlUnesc = s => String(s).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(m,n)=>String.fromCharCode(+n)).replace(/&amp;/g,"&");
+async function readZip(buf){
+  const dv = new DataView(buf);
+  let eocd = -1;
+  for(let i = dv.byteLength - 22; i >= Math.max(0, dv.byteLength - 22 - 65536); i--){
+    if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+  }
+  if(eocd < 0) throw new Error("zipではありません");
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const entries = {};
+  const td = new TextDecoder();
+  for(let n = 0; n < count; n++){
+    if(dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const csize = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const cmtLen = dv.getUint16(off + 32, true);
+    const lho = dv.getUint32(off + 42, true);
+    const name = td.decode(new Uint8Array(buf, off + 46, nameLen));
+    entries[name] = {method, csize, lho};
+    off += 46 + nameLen + extraLen + cmtLen;
+  }
+  return {
+    names: Object.keys(entries),
+    async read(name){
+      const e = entries[name];
+      if(!e) return null;
+      const nl = dv.getUint16(e.lho + 26, true);
+      const el = dv.getUint16(e.lho + 28, true);
+      const start = e.lho + 30 + nl + el;
+      const comp = buf.slice(start, start + e.csize);
+      if(e.method === 0) return new TextDecoder().decode(comp);
+      if(e.method === 8){
+        const ds = new DecompressionStream("deflate-raw");
+        const out = await new Response(new Blob([comp]).stream().pipeThrough(ds)).arrayBuffer();
+        return new TextDecoder().decode(out);
+      }
+      throw new Error("未対応の圧縮形式です");
+    }
+  };
+}
+function parseSheetXml(xml, shared){
+  const rows = [];
+  const rowRe = /<row[^>]*>([\s\S]*?)<\/row>/g;
+  let rm;
+  while((rm = rowRe.exec(xml))){
+    const cells = [];
+    const cellRe = /<c\b([^>]*)\/>|<c\b([^>]*)>([\s\S]*?)<\/c>/g;
+    let cm;
+    while((cm = cellRe.exec(rm[1]))){
+      const attrs = cm[1] || cm[2] || "";
+      const inner = cm[3] || "";
+      const refM = attrs.match(/r="([A-Z]+)\d+"/);
+      let col = cells.length;
+      if(refM){
+        col = 0;
+        for(const ch of refM[1]) col = col * 26 + (ch.charCodeAt(0) - 64);
+        col -= 1;
+      }
+      const typeM = attrs.match(/t="(\w+)"/);
+      let val = "";
+      if(typeM && typeM[1] === "inlineStr"){
+        val = (inner.match(/<t[^>]*>([\s\S]*?)<\/t>/g) || []).map(t => xmlUnesc(t.replace(/<[^>]+>/g, ""))).join("");
+      }else if(typeM && typeM[1] === "s"){
+        const vM = inner.match(/<v>(\d+)<\/v>/);
+        val = vM ? (shared[+vM[1]] || "") : "";
+      }else{
+        const vM = inner.match(/<v>([\s\S]*?)<\/v>/);
+        val = vM ? xmlUnesc(vM[1]) : "";
+      }
+      cells[col] = val;
+    }
+    for(let i = 0; i < cells.length; i++) if(cells[i] === undefined) cells[i] = "";
+    rows.push(cells);
+  }
+  return rows;
+}
+async function readXlsxRows(buf){
+  const zip = await readZip(buf);
+  let shared = [];
+  const ss = await zip.read("xl/sharedStrings.xml");
+  if(ss){
+    shared = (ss.match(/<si>[\s\S]*?<\/si>/g) || []).map(si =>
+      (si.match(/<t[^>]*>([\s\S]*?)<\/t>/g) || []).map(t => xmlUnesc(t.replace(/<[^>]+>/g, ""))).join(""));
+  }
+  let sheetName = "xl/worksheets/sheet1.xml";
+  if(!zip.names.includes(sheetName)){
+    sheetName = zip.names.find(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+    if(!sheetName) throw new Error("シートが見つかりません");
+  }
+  return parseSheetXml(await zip.read(sheetName), shared);
+}
+function parseCsvRows(text){
+  text = text.replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [], cell = "", inQ = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQ){
+      if(c === '"'){ if(text[i+1] === '"'){ cell += '"'; i++; } else inQ = false; }
+      else cell += c;
+    }else if(c === '"') inQ = true;
+    else if(c === ",") { row.push(cell); cell = ""; }
+    else if(c === "\n" || c === "\r"){
+      if(c === "\r" && text[i+1] === "\n") i++;
+      row.push(cell); cell = "";
+      if(row.some(x => x !== "")) rows.push(row);
+      row = [];
+    }else cell += c;
+  }
+  row.push(cell);
+  if(row.some(x => x !== "")) rows.push(row);
+  return rows;
+}
+function rowsToRounds(rows){
+  // ヘッダー行を探して列位置を特定(見つからなければ標準の並び)
+  let head = -1, col = {回戦:0, 選手1:1, 級1:2, 属性1:3, 会1:4, 選手2:5, 級2:6, 属性2:7, 会2:8, 備考:9};
+  for(let i = 0; i < Math.min(rows.length, 5); i++){
+    const r = rows[i].map(String);
+    if(r.some(c => c.includes("回戦")) && r.some(c => c.includes("選手1"))){
+      head = i;
+      Object.keys(col).forEach(k => {
+        const idx = r.findIndex(c => c.trim() === k);
+        if(idx >= 0) col[k] = idx;
+      });
+      break;
+    }
+  }
+  const byRound = new Map();
+  rows.slice(head + 1).forEach(r => {
+    const g = k => String(r[col[k]] || "").trim();
+    const roundLabel = g("回戦");
+    const name1 = g("選手1");
+    if(!name1) return;
+    const numM = roundLabel.match(/\d+/);
+    const rn = numM ? +numM[0] : 1;
+    if(!byRound.has(rn)) byRound.set(rn, {pairs: [], byes: []});
+    const p1 = {name: name1, rank: normRank(g("級1")) || "C", attr: normAttr(g("属性1")) || "", club: g("会1")};
+    const name2 = g("選手2");
+    if(!name2 || g("備考").includes("抜け")){
+      byRound.get(rn).byes.push(p1);
+    }else{
+      const p2 = {name: name2, rank: normRank(g("級2")) || "C", attr: normAttr(g("属性2")) || "", club: g("会2")};
+      byRound.get(rn).pairs.push([p1, p2]);
+    }
+  });
+  // 回戦番号順に並べ、1から振り直す
+  return [...byRound.keys()].sort((a, b) => a - b)
+    .map((k, i) => ({round: i + 1, byes: byRound.get(k).byes, pairs: byRound.get(k).pairs}))
+    .filter(rd => rd.pairs.length || rd.byes.length);
+}
+function normSnap(p){
+  p = p || {};
+  return {name: String(p.name || "").trim(), rank: RANKS.includes(p.rank) ? p.rank : (normRank(p.rank) || "C"),
+          attr: normAttr(p.attr) || "", club: String(p.club || "").trim()};
+}
+function ensurePlayer(name, rank, attr, club){
+  if(players.some(p => p.name === name)) return false;
+  players.push({id: nextId++, name, rank: RANKS.includes(rank) ? rank : "C", attr: attr || "", club: club || ""});
+  return true;
+}
+function applyImportedRounds(rounds, sourceLabel, fixUpToN){
+  if(!rounds.length){
+    alert("対戦のデータが見つかりませんでした。このアプリが書き出した表(回戦・選手1・…の列)か確認してください。");
+    return;
+  }
+  const total = rounds.reduce((s, rd) => s + rd.pairs.length, 0);
+  if(fixedRounds.length || lastResult){
+    if(!confirm(sourceLabel + "から" + rounds.length + "回戦・" + total + "試合を読み込みます。\n現在の確定済み回戦と表示中の結果は置き換えられます。よろしいですか?")) return;
+  }
+  let added = 0;
+  rounds.forEach(rd => {
+    rd.pairs.forEach(([a, b]) => { if(ensurePlayer(a.name, a.rank, a.attr, a.club)) added++; if(ensurePlayer(b.name, b.rank, b.attr, b.club)) added++; });
+    rd.byes.forEach(b => { if(ensurePlayer(b.name, b.rank, b.attr, b.club)) added++; });
+  });
+  const hasClub = rounds.some(rd => rd.pairs.some(([a, b]) => a.club || b.club) || rd.byes.some(b => b.club));
+  if(hasClub) $("club-mode").checked = true;
+  // fixUpToN が指定されていれば、その試合数までを確定済みにする(記録喪失からの続き組み用)
+  const n = Math.max(0, Math.min(fixUpToN || 0, rounds.length));
+  fixedRounds = rounds.slice(0, n).map(rd => ({round: rd.round, byes: rd.byes, pairs: rd.pairs}));
+  if(clampRounds() < rounds.length) $("rounds-input").value = rounds.length;
+  lastResult = {
+    schedule: rounds.map((rd, i) => ({round: rd.round, byes: rd.byes, pairs: rd.pairs, fixed: i < n})),
+    pendingReqs: [], ngSet: buildNgSet(), committed: false
+  };
+  renderAll();
+  renderResults(lastResult, true);
+  const tail = n
+    ? "\n第" + n + "試合までを確定済みにしました。試合数を増やして「続きを作成」を押すと、第" + (n + 1) + "試合以降だけを組めます。"
+    : "\n通常の組み合わせと同じ形で表示しています。各試合の「ここまで確定」で途中まで固定してから「続きを作成」を押すと、その先だけを組み替えられます。";
+  alert("対戦を読み込みました(" + rounds.length + "回戦・" + total + "試合" +
+    (added ? "、選手" + added + "名を新規登録" : "") + ")。" + tail);
+}
+
+/* ============ 履歴の確定と入出力 ============ */
+function commitHistory(result){
+  result.schedule.forEach(rd => {
+    rd.pairs.forEach(([a, b]) => {
+      const k = nameKey(a.name, b.name);
+      history.pairs[k] = (history.pairs[k] || 0) + 1;
+    });
+    (rd.byes || []).forEach(b => { history.byes[b.name] = (history.byes[b.name] || 0) + 1; });
+  });
+  saveState();
+  renderHistoryCount();
+}
+$("export-btn").addEventListener("click", () => {
+  const data = JSON.stringify({
+    players, requests, ngPairs, nextId, history, fixedRounds, manualByes,
+    lastResult: serializeResult(lastResult),
+    rounds: $("rounds-input").value,
+    useHistory: $("use-history").checked,
+    obogMode: $("obog-mode").checked,
+    clubMode: $("club-mode").checked,
+    exportedAt: new Date().toISOString()
+  }, null, 2);
+  download("かるた対戦組データ_" + stamp() + ".json", data, "application/json");
+});
+function importFromText(text){
+  const plain = String(text).replace(/^\uFEFF/, "").trim();
+  if(!plain.startsWith("{") && plain.includes("回戦")){
+    // 対戦表の貼り付け(タブまたはカンマ区切り)
+    const rows = plain.includes("\t") ? plain.split(/\n/).map(l => l.split("\t").map(s => s.trim())) : parseCsvRows(plain);
+    applyImportedRounds(rowsToRounds(rows), "貼り付けた表");
+    return true;
+  }
+  let d;
+  try{
+    d = JSON.parse(plain);
+  }catch(err){
+    alert("読み込めませんでした:内容がこのアプリの書き出し形式(JSON)ではないようです。\n・書き出したファイルをそのまま選んでいるか\n・貼り付けの場合、中身を最初から最後まで全部コピーしたか\nを確認してください。");
+    return false;
+  }
+  // 対戦記録JSON(rounds配列を持つ)は、通常表示の結果として取り込む
+  if(d && Array.isArray(d.rounds) && !Array.isArray(d.players)){
+    if(d.clubMode) $("club-mode").checked = true;
+    const rounds = d.rounds.map((rd, i) => ({
+      round: i + 1,
+      pairs: (rd.pairs || []).map(([a, b]) => [normSnap(a), normSnap(b)]),
+      byes: (rd.byes || []).map(normSnap)
+    })).filter(rd => rd.pairs.length || rd.byes.length);
+    applyImportedRounds(rounds, "対戦記録JSON");
+    return true;
+  }
+  if(!d || !Array.isArray(d.players)){
+    alert("読み込めませんでした:形式は正しいJSONですが、このアプリの書き出しデータではありません。");
+    return false;
+  }
+  if(players.length && !confirm("現在のメンバー・NG・対戦希望などを読み込んだ内容で置き換えます。よろしいですか?")) return false;
+  // バックアップ内に前回組んだ対戦があれば、その活用方法を尋ねる
+  const savedResult = reviveResult(d.lastResult);
+  if(savedResult && savedResult.schedule && savedResult.schedule.length){
+    const n = savedResult.schedule.length;
+    const useResult = confirm(
+      "このファイルには前回組んだ対戦(" + n + "回戦)が入っています。\n\n" +
+      "【OK】その対戦を呼び出す(記録が消えた後の続き組みなど)\n" +
+      "【キャンセル】対戦は呼び出さず、選手・NG・対戦希望だけ反映した“生成前の状態”で開く");
+    applyData(d, {resetResult: true});
+    if(useResult){
+      const rounds = savedResult.schedule.map((rd, i) => ({
+        round: i + 1,
+        pairs: rd.pairs.map(([a, b]) => [normSnap(a), normSnap(b)]),
+        byes: (rd.byes || []).map(normSnap)
+      })).filter(rd => rd.pairs.length || rd.byes.length);
+      // 何試合目まで実施済みか(=確定したいか)を尋ねる
+      let fixN = 0;
+      const ans = prompt(
+        "何試合目まで実施済みですか?\n" +
+        "その数までを確定し、続きだけを組み直せる状態にします。\n" +
+        "(全" + rounds.length + "試合。0を入力、または空欄・キャンセルなら全試合を未確定で表示)", "");
+      if(ans !== null && ans.trim() !== ""){
+        const v = parseInt(ans, 10);
+        if(!isNaN(v)) fixN = Math.max(0, Math.min(v, rounds.length));
+      }
+      applyImportedRounds(rounds, "バックアップ内の対戦", fixN);
+      return true;
+    }
+    renderAll();
+    $("results").innerHTML = "";
+    $("nav-result").style.display = "none";
+    alert("読み込みました(選手" + players.length + "名)。\n選手・NG・対戦希望・抜け指定・設定を反映した状態です。「組み合わせを作成」で対戦を組めます。");
+    return true;
+  }
+  applyData(d, {resetResult: true});
+  renderAll();
+  $("results").innerHTML = "";
+  $("nav-result").style.display = "none";
+  alert("読み込みました(選手" + players.length + "名)。\n選手・NG・対戦希望・抜け指定・設定を反映した状態です。「組み合わせを作成」で対戦を組めます。");
+  return true;
+}
+$("import-btn").addEventListener("click", () => $("import-file").click());
+$("import-file").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = "";
+  try{
+    const buf = await file.arrayBuffer();
+    const head = new Uint8Array(buf.slice(0, 2));
+    if(head[0] === 0x50 && head[1] === 0x4B){
+      // "PK" = zip = xlsx → 対戦表として取り込み
+      const rows = await readXlsxRows(buf);
+      applyImportedRounds(rowsToRounds(rows), "Excelファイル");
+      return;
+    }
+    const text = new TextDecoder().decode(buf).replace(/^\uFEFF/, "");
+    const trimmed = text.trim();
+    if(trimmed.startsWith("{")){
+      importFromText(text);            // アプリのバックアップ(JSON)
+    }else if(text.includes("回戦")){
+      applyImportedRounds(rowsToRounds(parseCsvRows(text)), "CSVファイル");  // 対戦表CSV
+    }else{
+      alert("読み込めるのは、このアプリで書き出したバックアップ(JSON)・Excel形式(.xlsx)・CSVのいずれかです。");
+    }
+  }catch(err){
+    alert("読み込めませんでした(" + (err && err.message ? err.message : "不明なエラー") + ")。「貼り付けで読み込み」もお試しください。");
+  }
+});
+$("paste-import-btn").addEventListener("click", () => {
+  const a = $("paste-import-area");
+  a.style.display = a.style.display === "none" ? "" : "none";
+});
+$("paste-import-run").addEventListener("click", () => {
+  const t = $("paste-import-input").value;
+  if(!t.trim()){ alert("先に書き出したファイルの中身を貼り付けてください。"); return; }
+  if(importFromText(t)) $("paste-import-input").value = "";
+});
+$("clear-history-btn").addEventListener("click", () => {
+  if(!historyPairCount() && !Object.keys(history.byes).length){ alert("履歴はまだありません。"); return; }
+  if(confirm("対戦履歴(" + historyPairCount() + "件)をすべて消去しますか?メンバー登録は残ります。")){
+    history = {pairs: {}, byes: {}};
+    saveState();
+    renderHistoryCount();
+  }
+});
+$("use-history").addEventListener("change", saveState);
+$("obog-mode").addEventListener("change", saveState);
+
+/* ============ イベント ============ */
+const clubMode = () => $("club-mode").checked;
+function updateClubUi(){
+  const on = clubMode();
+  document.querySelectorAll(".club-field").forEach(el => el.style.display = on ? "" : "none");
+}
+function updateGenUi(){
+  $("generate-btn").textContent = fixedRounds.length
+    ? "続きを作成(第" + (fixedRounds.length + 1) + "試合〜)" : "組み合わせを作成";
+  $("regen-btn").textContent = fixedRounds.length
+    ? "続きを別の組み合わせで再作成" : "別の組み合わせで再作成";
+  $("nav-result").style.display = $("results").children.length ? "" : "none";
+}
+function renderAll(){
+  updateClubUi();
+  renderPlayers();
+  renderReqRoundOptions();
+  renderPairList("req-list", requests, false);
+  renderPairList("ng-list", ngPairs, true);
+  renderByeConfig();
+  renderFixedBanner();
+  renderHistoryCount();
+  updateGenUi();
+  saveState();
+}
+$("rank-input").innerHTML = rankOptions();
+$("bulk-rank").innerHTML = rankOptions();
+["club-input","bulk-club"].forEach(id => { clubPickers[id] = buildClubPicker($(id)); });
+$("club-mode").addEventListener("change", () => { updateClubUi(); renderAll(); });
+$("add-player-btn").addEventListener("click", () => {
+  const club = clubMode() ? clubPickers["club-input"].getValue() : "";
+  if(addPlayer($("name-input").value, $("rank-input").value, $("attr-input").value, club)){
+    $("name-input").value = "";
+    $("name-input").focus();
+    renderAll();
+  }
+});
+$("name-input").addEventListener("keydown", e => {
+  if(e.key === "Enter") $("add-player-btn").click();
+});
+$("toggle-bulk-btn").addEventListener("click", () => {
+  const a = $("bulk-area");
+  a.style.display = a.style.display === "none" ? "" : "none";
+});
+function normRank(s){
+  if(!s) return null;
+  s = String(s).trim().replace(/級$/, "").replace(/＋/g, "+").toUpperCase();
+  return RANKS.includes(s) ? s : null;
+}
+function normAttr(s){
+  if(!s) return null;
+  s = String(s).trim().toUpperCase();
+  if(s === "現役".toUpperCase() || s === "現役") return "現役";
+  if(s === "OBOG" || s === "OB" || s === "OG") return "OBOG";
+  return null;
+}
+$("bulk-add-btn").addEventListener("click", () => {
+  const text = $("bulk-input").value;
+  const defRank = $("bulk-rank").value, defAttr = $("bulk-attr").value;
+  const defClub = clubMode() ? clubPickers["bulk-club"].getValue() : "";
+  let added = 0;
+  if(text.includes("\t")){
+    // Excel/スプレッドシートからの貼り付け(タブ区切りの表)
+    text.split(/\n/).forEach(line => {
+      const cols = line.split("\t").map(s => s.trim());
+      if(!cols[0]) return;
+      const rank = normRank(cols[1]) || defRank;
+      const attr = normAttr(cols[2]) !== null ? normAttr(cols[2]) : defAttr;
+      const club = cols[3] || defClub;
+      if(addPlayer(cols[0], rank, attr, club)) added++;
+    });
+  }else{
+    const names = text.split(/[\s,、,]+/).map(s => s.trim()).filter(Boolean);
+    if(!names.length){ alert("名前を入力してください。"); return; }
+    names.forEach(n => { if(addPlayer(n, defRank, defAttr, defClub)) added++; });
+  }
+  if(added){ $("bulk-input").value = ""; renderAll(); }
+});
+$("sample-btn").addEventListener("click", () => {
+  const sample = [["青山","A+","現役","早稲田大学かるた会"],["石田","A","OBOG","慶應かるた会"],["上野","B+","現役","東京大学かるた会"],
+    ["江口","B","現役","早稲田大学かるた会"],["大野","B","OBOG","慶應かるた会"],
+    ["加藤","C+","現役","東京大学かるた会"],["木村","C+","OBOG","早稲田大学かるた会"],["黒田","C","現役","慶應かるた会"],
+    ["小林","C","","東京大学かるた会"],["斎藤","C","OBOG","早稲田大学かるた会"],
+    ["高橋","D+","現役","慶應かるた会"],["田中","D","現役","東京大学かるた会"],["土屋","D","OBOG","早稲田大学かるた会"],
+    ["中村","E+","","慶應かるた会"],["西田","E","現役","東京大学かるた会"]];
+  sample.forEach(([n, r, a, c]) => { if(!players.some(p => p.name === n)) addPlayer(n, r, a, c); });
+  renderAll();
+});
+$("clear-players-btn").addEventListener("click", () => {
+  if(players.length && confirm("登録した選手をすべて削除しますか?(確定済みの回戦もリセットされます)")){
+    players = []; requests = []; ngPairs = []; fixedRounds = []; manualByes = {}; lastResult = null;
+    renderAll();
+    $("results").innerHTML = "";
+    $("regen-btn").style.display = "none";
+    $("print-btn").style.display = "none";
+  }
+});
+["req-a","req-b","ng-a","ng-b"].forEach(id => {
+  pickers[id] = buildPicker($(id), {candidates: () => players, placeholder: "名前で検索 / ▾"});
+});
+$("add-req-btn").addEventListener("click", () =>
+  addPairTo(requests, ngPairs, pickers["req-a"].getId(), pickers["req-b"].getId(), "希望", "対戦NG",
+    +$("req-round").value || null));
+$("add-ng-btn").addEventListener("click", () =>
+  addPairTo(ngPairs, requests, pickers["ng-a"].getId(), pickers["ng-b"].getId(), "対戦NG", "希望"));
+$("toggle-req-bulk-btn").addEventListener("click", () => {
+  const a = $("req-bulk-area");
+  a.style.display = a.style.display === "none" ? "" : "none";
+});
+$("toggle-ng-bulk-btn").addEventListener("click", () => {
+  const a = $("ng-bulk-area");
+  a.style.display = a.style.display === "none" ? "" : "none";
+});
+$("req-bulk-add-btn").addEventListener("click", () => {
+  const text = $("req-bulk-input").value.trim();
+  if(!text){ alert("対戦させたい2人を1行ずつ入力してください。"); return; }
+  if(!players.length){ alert("先に選手を登録してください。"); return; }
+  const n = bulkAddPairs(text, requests, ngPairs, "希望", "対戦NG", true);
+  if(n) $("req-bulk-input").value = "";
+});
+$("ng-bulk-add-btn").addEventListener("click", () => {
+  const text = $("ng-bulk-input").value.trim();
+  if(!text){ alert("当てたくない2人を1行ずつ入力してください。"); return; }
+  if(!players.length){ alert("先に選手を登録してください。"); return; }
+  const n = bulkAddPairs(text, ngPairs, requests, "対戦NG", "希望", false);
+  if(n) $("ng-bulk-input").value = "";
+});
+$("rounds-input").addEventListener("input", () => { renderByeConfig(); renderReqRoundOptions(); saveState(); });
+$("rounds-minus").addEventListener("click", () => {
+  $("rounds-input").value = Math.max(fixedRounds.length + 1 || 1, clampRounds() - 1);
+  renderByeConfig(); renderReqRoundOptions(); saveState();
+});
+$("rounds-plus").addEventListener("click", () => {
+  $("rounds-input").value = Math.min(20, clampRounds() + 1);
+  renderByeConfig(); renderReqRoundOptions(); saveState();
+});
+$("generate-btn").addEventListener("click", run);
+$("regen-btn").addEventListener("click", run);
+$("print-btn").addEventListener("click", () => window.print());
+function run(){
+  if(players.length < 2){ alert("選手を2名以上登録してください。"); return; }
+  const rounds = clampRounds();
+  if(fixedRounds.length && rounds <= fixedRounds.length){
+    alert("試合数(" + rounds + ")が確定済みの回戦数(" + fixedRounds.length + ")以下です。試合数を増やすか、確定を解除してください。");
+    return;
+  }
+  for(let r = fixedRounds.length + 1; r <= rounds; r++){
+    const remain = players.length - (manualByes[r] || []).filter(id => byId(id)).length;
+    if(remain < 2){
+      alert("第" + r + "試合は抜ける人が多すぎて対戦が組めません(残り" + remain + "名)。抜け指定を減らしてください。");
+      return;
+    }
+  }
+  const evenN = players.length % 2 === 0 ? players.length : players.length - 1;
+  if(rounds > evenN - 1 + (players.length % 2)){
+    if(!confirm("試合数が多いため、再戦が発生する可能性があります。続けますか?")) return;
+  }
+  lastResult = generateSchedule();
+  renderResults(lastResult);
+  saveState();
+}
+loadState();
+renderAll();
+if(lastResult) renderResults(lastResult, true);
+</script>
+</body>
+</html>
