@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デイトレ・エントリー復習AI</title>
+<style>
+:root{
+  --navy:#16223F;
+  --navy-deep:#0E1830;
+  --ink:#262629;
+  --paper:#FAFAF7;
+  --line:#E3E2DC;
+  --muted:#8A8A93;
+  --blue:#2C5FAD;      /* breakout */
+  --green:#4C7A52;     /* dip_reversal */
+  --amber:#B5792B;     /* spike_fade */
+  --red:#B3342E;       /* 警告・NG */
+  --yellow-bg:#FFF6DC;
+  --yellow-border:#E8C468;
+  --card:#FFFFFF;
+  --radius:10px;
+  --sans:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:70px}
+header{background:var(--navy-deep);color:#F4F3EE;padding:22px 20px 18px}
+.header-inner{max-width:900px;margin:0 auto}
+h1{font-size:22px;font-weight:700;letter-spacing:.04em}
+.header-sub{font-size:12.5px;color:#B9BFCE;margin-top:4px;letter-spacing:.02em}
+.top-notice{background:#22335C;color:#EDEFF6;font-size:12px;padding:8px 20px;letter-spacing:.02em}
+.top-notice .inner{max-width:900px;margin:0 auto}
+main{max-width:900px;margin:0 auto;padding:20px 16px 40px}
+section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:18px;overflow:hidden}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.sec-head h2{font-size:15.5px;font-weight:700;letter-spacing:.03em;color:var(--navy)}
+.sec-head .toggle-mark{color:var(--muted);font-size:12px}
+.sec-body{padding:16px 18px}
+.sec-body.collapsed{display:none}
+.usage{background:#F4F5F8;border-left:3px solid var(--navy);font-size:12.5px;color:#4C4C55;padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:14px}
+.usage b{color:var(--navy)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
+.field label{font-size:12px;font-weight:600;color:var(--navy)}
+input[type=text],input[type=date],input[type=password],select,textarea{
+  font-family:var(--sans);font-size:14.5px;padding:9px 11px;border:1px solid #CFCEC7;border-radius:7px;background:#fff;color:var(--ink);width:100%
+}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
+textarea{resize:vertical;font-size:14px}
+button{font-family:var(--sans);font-size:14px;font-weight:600;padding:9px 16px;border:none;border-radius:7px;cursor:pointer;background:var(--navy);color:#fff;letter-spacing:.02em;transition:filter .12s}
+button:hover{filter:brightness(1.18)}
+button.ghost{background:#fff;color:var(--navy);border:1px solid var(--navy)}
+button.danger{background:#fff;color:var(--red);border:1px solid var(--red)}
+button.small{font-size:12.5px;padding:6px 12px}
+button:disabled{opacity:.5;cursor:not-allowed;filter:none}
+.hint{font-size:12px;color:var(--muted);margin-top:5px}
+.muted{color:var(--muted)}
+
+/* 画像アップロード */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:620px){.upload-grid{grid-template-columns:1fr}}
+.dropzone{border:2px dashed #CFCEC7;border-radius:10px;padding:14px;text-align:center;background:#FBFBF9;cursor:pointer;transition:border-color .12s,background .12s;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.dropzone:hover,.dropzone.dragover{border-color:var(--navy);background:#F1F3F8}
+.dropzone.focused{border-color:var(--blue)}
+.dropzone .dz-title{font-weight:700;font-size:13.5px;color:var(--navy)}
+.dropzone .dz-req{color:var(--red);font-size:11px;font-weight:700}
+.dropzone .dz-opt{color:var(--muted);font-size:11px}
+.dropzone .dz-desc{font-size:12px;color:var(--muted)}
+.dropzone img{max-width:100%;max-height:180px;border-radius:6px;border:1px solid var(--line)}
+.dz-remove{margin-top:6px}
+.dz-filename{font-size:11px;color:var(--muted);word-break:break-all;max-width:100%}
+
+/* エントリー実行ボタン */
+.run-bar{display:flex;justify-content:center;margin:6px 0 4px}
+.run-bar button{font-size:16px;padding:13px 36px;letter-spacing:.05em}
+.run-status{text-align:center;font-size:13px;color:var(--muted);margin-top:8px;min-height:18px}
+
+/* バナー類 */
+.banner{border-radius:8px;padding:10px 14px;font-size:13.5px;margin-bottom:14px;border:1px solid}
+.banner.warn{background:var(--yellow-bg);border-color:var(--yellow-border);color:#6B5210}
+.banner.err{background:#FAEEEE;border-color:#E7BEBB;color:var(--red)}
+.banner.info{background:#EEF1F7;border-color:#C9D2E4;color:var(--navy)}
+
+/* 結果: エントリーカード */
+.entry-card{border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin-bottom:10px;border-left:5px solid var(--muted);background:#FEFEFD}
+.entry-card.breakout{border-left-color:var(--blue)}
+.entry-card.dip_reversal{border-left-color:var(--green)}
+.entry-card.spike_fade{border-left-color:var(--amber)}
+.entry-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.entry-time{font-weight:700;font-size:14px}
+.setup-tag{font-size:11px;font-weight:700;border-radius:4px;padding:2px 8px;color:#fff}
+.setup-tag.breakout{background:var(--blue)}
+.setup-tag.dip_reversal{background:var(--green)}
+.setup-tag.spike_fade{background:var(--amber)}
+.direction-tag{font-size:11px;font-weight:700;border-radius:4px;padding:2px 8px;background:#EDEDED;color:#444}
+.conf-badge{font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;margin-left:auto}
+.conf-badge.high{background:#E4F0E4;color:#2C5E2C}
+.conf-badge.medium{background:#F3EEDD;color:#8A6B2C}
+.conf-badge.low{background:#F6E5E4;color:var(--red)}
+.entry-price{font-size:14.5px;font-weight:600;margin-bottom:4px}
+.entry-reason{font-size:13.5px;color:#3C3C42;margin-bottom:6px}
+.entry-stop{font-size:12.5px;color:var(--red);background:#FCF2F1;border-radius:5px;padding:4px 8px;display:inline-block}
+
+/* 見送り局面 */
+.notrade-card{border:1px solid #DCE4D8;background:#F6F8F4;border-radius:9px;padding:10px 14px;margin-bottom:8px}
+.notrade-time{font-weight:700;font-size:13.5px;color:var(--green)}
+.notrade-reason{font-size:13.5px;color:#3C3C42;margin-top:3px}
+
+/* 折りたたみ(読み取り上の限界) */
+.caveats-toggle{font-size:12.5px;color:var(--navy);background:none;border:1px solid var(--navy);padding:4px 10px}
+.caveats-list{margin-top:8px;font-size:13px;color:#4C4C55;padding-left:18px}
+.caveats-list li{margin-bottom:3px}
+
+/* 総評 */
+.overall-review{font-size:14px;color:var(--ink);background:#F7F7F4;border-radius:8px;padding:12px 14px;margin-top:6px}
+
+/* 生JSON表示 */
+.raw-output{white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:12px;background:#1E1E22;color:#DCDCDC;padding:12px;border-radius:8px;max-height:340px;overflow:auto}
+
+/* 履歴 */
+.history-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-bottom:7px;background:#FEFEFD;cursor:pointer}
+.history-item:hover{border-color:var(--navy)}
+.history-item .h-date{font-weight:700;font-size:13px;color:var(--navy);min-width:92px}
+.history-item .h-symbol{font-size:13.5px}
+.history-item .h-count{margin-left:auto;font-size:12px;color:var(--muted)}
+.history-empty{font-size:13px;color:var(--muted);padding:6px 2px}
+
+/* フッター(免責文) */
+footer{position:fixed;left:0;right:0;bottom:0;background:var(--navy-deep);color:#DADEE8;font-size:11.5px;padding:9px 16px;text-align:center;z-index:50;box-shadow:0 -2px 8px rgba(0,0,0,.15)}
+footer b{color:#fff}
+
+@media (max-width:560px){
+  h1{font-size:19px}
+  .entry-price{font-size:13.5px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>デイトレ・エントリー復習AI</h1>
+    <div class="header-sub">5分足・1分足チャートから「その日どこでエントリーすべきだったか」を事後判定します</div>
+  </div>
+</header>
+<div class="top-notice"><div class="inner">
+  これは<b>復習・パターン認識訓練ツール</b>です。事後分析のためリアルタイムの売買判断には使用しないでください。判定精度は将来の予測力を意味しません。<b>投資助言ではありません。</b>
+</div></div>
+
+<main>
+
+<!-- 設定 -->
+<section>
+  <div class="sec-head" data-toggle="settings-body"><h2>⚙ 設定(API接続)</h2><span class="toggle-mark" id="settings-toggle-mark">閉じる ▲</span></div>
+  <div class="sec-body" id="settings-body">
+    <div class="usage"><b>使い方</b>:A案(GASプロキシ)が既定・推奨です。APIキーはブラウザに一切保存されません。B案(ブラウザ直接)を選ぶ場合、APIキーはこのタブを閉じるかリロードすると消える一時保存(sessionStorage)のみに保持されます。</div>
+    <div class="row">
+      <div class="field">
+        <label for="api-mode">API呼び出し方式</label>
+        <select id="api-mode">
+          <option value="gas">A案:GASプロキシ経由(推奨・既定)</option>
+          <option value="direct">B案:ブラウザから直接呼び出し</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="model-name">モデル名</label>
+        <input type="text" id="model-name" value="claude-sonnet-4-6">
+      </div>
+    </div>
+    <div class="row" id="gas-fields" style="margin-top:10px">
+      <div class="field" style="flex:2;min-width:260px">
+        <label for="gas-url">GASプロキシ Web App URL</label>
+        <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+      </div>
+    </div>
+    <div class="row" id="direct-fields" style="margin-top:10px;display:none">
+      <div class="field" style="flex:2;min-width:260px">
+        <label for="api-key">Anthropic APIキー(sessionStorageのみ・永続保存されません)</label>
+        <input type="password" id="api-key" placeholder="sk-ant-...">
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="save-settings-btn" class="small">設定を保存</button>
+      <span class="hint" id="settings-saved-msg" style="margin-top:0"></span>
+    </div>
+  </div>
+</section>
+
+<!-- 画像アップロード -->
+<section>
+  <div class="sec-head" data-toggle="upload-body"><h2>📈 チャート画像</h2><span class="toggle-mark" id="upload-toggle-mark">閉じる ▲</span></div>
+  <div class="sec-body" id="upload-body">
+    <div class="usage"><b>使い方</b>:ドラッグ&ドロップ・クリックしてファイル選択・貼り付け(Ctrl+V)のいずれかで画像を追加できます。貼り付けは直前にクリックした枠に入ります。5分足は必須、1分足はあれば精密化に使われます。</div>
+    <div class="upload-grid">
+      <div class="dropzone" id="dz-main" tabindex="0">
+        <div id="dz-main-content">
+          <div class="dz-title">5分足チャート <span class="dz-req">必須</span></div>
+          <div class="dz-desc">クリック / ドラッグ&ドロップ / 貼り付け</div>
+        </div>
+      </div>
+      <div class="dropzone" id="dz-1min" tabindex="0">
+        <div id="dz-1min-content">
+          <div class="dz-title">1分足チャート <span class="dz-opt">任意・精密化用</span></div>
+          <div class="dz-desc">クリック / ドラッグ&ドロップ / 貼り付け</div>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="file-input-main" accept="image/png,image/jpeg" style="display:none">
+    <input type="file" id="file-input-1min" accept="image/png,image/jpeg" style="display:none">
+  </div>
+</section>
+
+<!-- 補助情報 -->
+<section>
+  <div class="sec-head" data-toggle="aux-body"><h2>📝 補助情報(すべて任意・入力推奨)</h2><span class="toggle-mark" id="aux-toggle-mark">閉じる ▲</span></div>
+  <div class="sec-body" id="aux-body">
+    <div class="usage"><b>使い方</b>:前日終値・前日高値はブレイク基準線の特定に使われます。空欄でも動作しますが、画像読み取りのみに依存する旨の警告が結果に表示されます。</div>
+    <div class="row">
+      <div class="field"><label for="aux-symbol-code">銘柄コード</label><input type="text" id="aux-symbol-code" placeholder="例) 7203"></div>
+      <div class="field"><label for="aux-symbol-name">銘柄名</label><input type="text" id="aux-symbol-name" placeholder="例) トヨタ自動車"></div>
+      <div class="field"><label for="aux-date">対象日付</label><input type="date" id="aux-date"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="field"><label for="aux-prev-close">前日終値</label><input type="text" id="aux-prev-close" placeholder="例) 2850"></div>
+      <div class="field"><label for="aux-prev-high">前日高値</label><input type="text" id="aux-prev-high" placeholder="例) 2880"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="field" style="flex:1 1 100%">
+        <label for="aux-memo">寄付の地合いメモ(自由記述)</label>
+        <textarea id="aux-memo" rows="2" placeholder="例) 前場は日経平均が軟調、寄付から売り優勢"></textarea>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 実行 -->
+<div class="run-bar">
+  <button id="run-btn" title="5分足チャート画像をアップロードしてください">エントリーポイントを判定</button>
+</div>
+<div class="run-status" id="run-status"></div>
+
+<!-- 結果 -->
+<div id="result-area"></div>
+
+<!-- 履歴 -->
+<section>
+  <div class="sec-head" data-toggle="history-body"><h2>🗂 判定履歴(直近50件)</h2><span class="toggle-mark" id="history-toggle-mark">閉じる ▲</span></div>
+  <div class="sec-body" id="history-body">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <span class="hint" id="history-count" style="margin-top:0">記録 0件</span>
+      <span>
+        <button class="ghost small" id="export-history-btn">JSONでエクスポート</button>
+        <button class="danger small" id="clear-history-btn">履歴を全消去</button>
+      </span>
+    </div>
+    <div id="history-list"></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  本ツールは事後分析によるパターン認識訓練用であり、リアルタイムの売買判断ツールではありません。<b>投資助言ではありません。</b>投資判断はご自身の責任で行ってください。
+</footer>
+
+<script>
+"use strict";
+
+/* ============================================================
+   定数
+   ============================================================ */
+const STORAGE_KEY_SETTINGS = "entryReviewSettings_v1";
+const STORAGE_KEY_HISTORY = "entryReviewHistory_v1";
+const SESSION_KEY_API_KEY = "entryReviewApiKey_v1";
+const MAX_HISTORY = 50;
+const ANTHROPIC_VERSION = "2023-06-01";
+const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
+
+// 手法ルール(発注者の手法。将来この定数だけを編集すれば挙動を調整できる)
+const METHOD_RULES = `
+あなたはデイトレード(保有数十分〜数時間)のエントリーポイントを、チャート画像から事後的に判定する専門家です。
+以下の手法ルールに厳密に従って判定してください。「当てにいく」方向でプロンプトを盛らず、読み取りに自信がない場合は
+正直に低いconfidenceとcaveatsを返すことを最優先してください。
+
+【セットアップA: ブレイクアウト順張り】
+- 前日高値または当日ここまでの高値を、出来高の増加を伴って上抜けた足でエントリー候補とする。
+- ブレイク前に高値付近でのもみ合い(値幅収縮)があるほど優位性が高いと評価する。
+- ブレイク足が長い上ヒゲで終わっている場合は「見送りが正解」と判定してよい(no_trade_zonesに計上する)。
+
+【セットアップB: 急落の逆張り】
+- 短時間での急落(直近の平均的な値幅に対して明確に過大な下落)後、1分足で下げ止まり・反転の兆候
+  (下ヒゲ、出来高ピークアウト)が出た足でエントリー候補とする。
+
+【セットアップC: 急騰の逆張り】
+- 急騰後の失速局面。現物前提のため、新規エントリーではなく利確・見送り判断の材料として扱う
+  (entriesではなくno_trade_zonesまたはoverall_reviewで言及する)。
+
+【共通ルール】
+- 各エントリー候補には損切り目安(直近安値割れ等)を必ず併記する。
+- 画像の読み取りに限界がある場合(価格軸が不鮮明、出来高が判読困難、画像が小さい等)は
+  reading_confidenceを低く設定し、reading_caveatsに具体的な限界を列挙すること。読み取れないものを
+  推測で埋めない。
+`.trim();
+
+/* ============================================================
+   状態
+   ============================================================ */
+let images = { main: null, oneMin: null }; // {base64, mediaType, fileName}
+let activeDropzone = "main";
+let history = [];
+
+/* ============================================================
+   ユーティリティ
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function nowIso() { return new Date().toISOString(); }
+
+/* ============================================================
+   設定の読み込み・保存
+   ============================================================ */
+function loadSettings() {
+  let settings = { apiMode: "gas", gasUrl: "", model: DEFAULT_MODEL };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_SETTINGS);
+    if (raw) settings = Object.assign(settings, JSON.parse(raw));
+  } catch (e) { /* 壊れた設定は既定値にフォールバック */ }
+  $("api-mode").value = settings.apiMode;
+  $("gas-url").value = settings.gasUrl || "";
+  $("model-name").value = settings.model || DEFAULT_MODEL;
+  try {
+    const key = sessionStorage.getItem(SESSION_KEY_API_KEY);
+    if (key) $("api-key").value = key;
+  } catch (e) { /* no-op */ }
+  updateApiModeFields();
+}
+
+function saveSettings() {
+  const settings = {
+    apiMode: $("api-mode").value,
+    gasUrl: $("gas-url").value.trim(),
+    model: $("model-name").value.trim() || DEFAULT_MODEL
+  };
+  localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+  // APIキーは永続保存しない。sessionStorageのみ。
+  try {
+    if (settings.apiMode === "direct" && $("api-key").value.trim()) {
+      sessionStorage.setItem(SESSION_KEY_API_KEY, $("api-key").value.trim());
+    } else {
+      sessionStorage.removeItem(SESSION_KEY_API_KEY);
+    }
+  } catch (e) { /* no-op */ }
+  $("settings-saved-msg").textContent = "保存しました";
+  setTimeout(() => { $("settings-saved-msg").textContent = ""; }, 2000);
+}
+
+function updateApiModeFields() {
+  const mode = $("api-mode").value;
+  $("gas-fields").style.display = mode === "gas" ? "flex" : "none";
+  $("direct-fields").style.display = mode === "direct" ? "flex" : "none";
+}
+
+function getSettings() {
+  return {
+    apiMode: $("api-mode").value,
+    gasUrl: $("gas-url").value.trim(),
+    model: $("model-name").value.trim() || DEFAULT_MODEL,
+    apiKey: $("api-key").value.trim()
+  };
+}
+
+/* ============================================================
+   セクションの折りたたみ
+   ============================================================ */
+function wireCollapsibles() {
+  document.querySelectorAll(".sec-head[data-toggle]").forEach(head => {
+    head.addEventListener("click", () => {
+      const bodyId = head.getAttribute("data-toggle");
+      const body = $(bodyId);
+      const mark = $(bodyId.replace("-body", "-toggle-mark"));
+      const collapsed = body.classList.toggle("collapsed");
+      if (mark) mark.textContent = collapsed ? "開く ▼" : "閉じる ▲";
+    });
+  });
+}
+
+/* ============================================================
+   画像アップロード
+   ============================================================ */
+function wireDropzone(zoneKey, zoneId, contentId, fileInputId) {
+  const zone = $(zoneId);
+  const fileInput = $(fileInputId);
+
+  zone.addEventListener("click", () => {
+    activeDropzone = zoneKey;
+    fileInput.click();
+  });
+  zone.addEventListener("focus", () => { activeDropzone = zoneKey; markActiveDropzone(); });
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files && fileInput.files[0]) handleImageFile(zoneKey, fileInput.files[0]);
+    fileInput.value = "";
+  });
+
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    activeDropzone = zoneKey;
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) handleImageFile(zoneKey, e.dataTransfer.files[0]);
+  });
+}
+
+function markActiveDropzone() {
+  $("dz-main").classList.toggle("focused", activeDropzone === "main");
+  $("dz-1min").classList.toggle("focused", activeDropzone === "oneMin");
+}
+
+function wirePasteHandler() {
+  window.addEventListener("paste", e => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type && item.type.indexOf("image") !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          const target = activeDropzone === "oneMin" ? "oneMin" : "main";
+          handleImageFile(target, file);
+        }
+        e.preventDefault();
+        break;
+      }
+    }
+  });
+}
+
+function handleImageFile(zoneKey, file) {
+  if (!/^image\/(png|jpeg|jpg)$/.test(file.type)) {
+    alert("PNGまたはJPEG形式の画像を指定してください。");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    const base64 = dataUrl.split(",")[1];
+    images[zoneKey] = { base64, mediaType: file.type, fileName: file.name, dataUrl };
+    renderDropzonePreview(zoneKey);
+    updateRunButtonState();
+  };
+  reader.onerror = () => alert("画像の読み込みに失敗しました。");
+  reader.readAsDataURL(file);
+}
+
+function removeImage(zoneKey) {
+  images[zoneKey] = null;
+  renderDropzonePreview(zoneKey);
+  updateRunButtonState();
+}
+
+function renderDropzonePreview(zoneKey) {
+  const contentId = zoneKey === "main" ? "dz-main-content" : "dz-1min-content";
+  const el = $(contentId);
+  const img = images[zoneKey];
+  const label = zoneKey === "main"
+    ? '5分足チャート <span class="dz-req">必須</span>'
+    : '1分足チャート <span class="dz-opt">任意・精密化用</span>';
+  if (!img) {
+    el.innerHTML = `<div class="dz-title">${label}</div><div class="dz-desc">クリック / ドラッグ&ドロップ / 貼り付け</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <img src="${img.dataUrl}" alt="プレビュー">
+    <div class="dz-filename">${esc(img.fileName)}</div>
+    <button type="button" class="ghost small dz-remove" data-remove-zone="${zoneKey}">削除</button>
+  `;
+  el.querySelector("[data-remove-zone]").addEventListener("click", ev => {
+    ev.stopPropagation();
+    removeImage(zoneKey);
+  });
+}
+
+function updateRunButtonState() {
+  const btn = $("run-btn");
+  const hasMain = !!images.main;
+  btn.disabled = !hasMain;
+  btn.title = hasMain ? "" : "5分足チャート画像をアップロードしてください";
+}
+
+/* ============================================================
+   補助情報の取得
+   ============================================================ */
+function getAuxInfo() {
+  return {
+    symbolCode: $("aux-symbol-code").value.trim(),
+    symbolName: $("aux-symbol-name").value.trim(),
+    date: $("aux-date").value,
+    prevClose: $("aux-prev-close").value.trim(),
+    prevHigh: $("aux-prev-high").value.trim(),
+    memo: $("aux-memo").value.trim()
+  };
+}
+
+function auxInfoToText(aux) {
+  const lines = [];
+  if (aux.symbolCode || aux.symbolName) lines.push(`銘柄: ${aux.symbolCode} ${aux.symbolName}`.trim());
+  if (aux.date) lines.push(`対象日付: ${aux.date}`);
+  if (aux.prevClose) lines.push(`前日終値: ${aux.prevClose}`);
+  if (aux.prevHigh) lines.push(`前日高値: ${aux.prevHigh}`);
+  if (aux.memo) lines.push(`寄付の地合いメモ: ${aux.memo}`);
+  return lines.length ? lines.join("\n") : "(補助情報の入力なし)";
+}
+
+function hasBasePrice(aux) {
+  return !!(aux.prevClose || aux.prevHigh);
+}
+
+/* ============================================================
+   Claude API 呼び出し
+   ============================================================ */
+
+// system プロンプト。JSONのみを返させ、前置き・コードフェンスを禁止する。
+function buildSystemPrompt() {
+  return `${METHOD_RULES}
+
+出力形式について:
+- 必ず以下のJSONスキーマに厳密に従った有効なJSONのみを出力すること。
+- 前置きの文章、コードフェンス(\`\`\`)、説明文は一切出力しないこと。出力の最初の文字は「{」であること。
+
+JSONスキーマ:
+{
+  "chart_reading": {
+    "symbol": "画像/入力から読み取った銘柄(不明ならnull)",
+    "price_range_estimate": "画像から読み取った当日値幅の推定",
+    "reading_confidence": "high | medium | low",
+    "reading_caveats": ["価格軸が不鮮明 等、読み取り上の限界を列挙"]
+  },
+  "entries": [
+    {
+      "time_approx": "おおよその時刻(例: 9:15頃)",
+      "price_zone": "エントリー価格帯(推定)",
+      "setup_type": "breakout | dip_reversal | spike_fade",
+      "direction": "long | short",
+      "reasoning": "根拠(値幅収縮・出来高・基準線ブレイク等)",
+      "stop_suggestion": "損切り目安",
+      "confidence": "high | medium | low"
+    }
+  ],
+  "no_trade_zones": [
+    { "time_approx": "...", "reason": "入りたくなるが見送るべき局面とその理由" }
+  ],
+  "overall_review": "この日1日の総評(2〜3文)"
+}`;
+}
+
+function buildUserContent(aux) {
+  const content = [];
+  content.push({
+    type: "image",
+    source: { type: "base64", media_type: images.main.mediaType, data: images.main.base64 }
+  });
+  if (images.oneMin) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: images.oneMin.mediaType, data: images.oneMin.base64 }
+    });
+  }
+  const auxText = [
+    "アップロードされた画像: 1枚目=5分足チャート" + (images.oneMin ? "、2枚目=1分足チャート(精密化用)" : "(1分足なし)"),
+    "",
+    "補助情報:",
+    auxInfoToText(aux),
+    "",
+    "上記チャート画像と補助情報をもとに、指定のJSONスキーマで判定結果を出力してください。"
+  ].join("\n");
+  content.push({ type: "text", text: auxText });
+  return content;
+}
+
+// GASプロキシ経由(A案)。GASのdoPostへのCORSプリフライトを避けるため
+// Content-Type: text/plain で送り、GAS側でJSONとしてパースする。
+async function callViaGas(gasUrl, model, system, messages) {
+  if (!gasUrl) {
+    const err = new Error("GASプロキシのURLが設定されていません。設定セクションでURLを入力してください。");
+    err.needsSetup = true;
+    throw err;
+  }
+  const res = await fetch(gasUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ model, max_tokens: 4000, system, messages })
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    const err = new Error(`GASプロキシがエラーを返しました (HTTP ${res.status})`);
+    err.status = res.status;
+    err.body = text;
+    throw err;
+  }
+  let json;
+  try { json = JSON.parse(text); } catch (e) {
+    const err = new Error("GASプロキシの応答をJSONとして解釈できませんでした。");
+    err.body = text;
+    throw err;
+  }
+  if (json.error) {
+    const err = new Error(`Anthropic APIエラー: ${json.error.message || JSON.stringify(json.error)}`);
+    err.status = json.error.status || 0;
+    err.body = JSON.stringify(json, null, 2);
+    throw err;
+  }
+  return json;
+}
+
+// ブラウザ直接呼び出し(B案)。
+// TODO(実装者への注意): anthropic-dangerous-direct-browser-access ヘッダーおよび
+// CORS仕様は https://docs.claude.com/en/api/overview で最新状態を必ず確認すること。
+async function callViaDirect(apiKey, model, system, messages) {
+  if (!apiKey) {
+    const err = new Error("APIキーが設定されていません。設定セクションでAPIキーを入力してください。");
+    err.needsSetup = true;
+    throw err;
+  }
+  const res = await fetch(ANTHROPIC_MESSAGES_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({ model, max_tokens: 4000, system, messages })
+  });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch (e) {
+    const err = new Error("Anthropic APIの応答をJSONとして解釈できませんでした。");
+    err.status = res.status;
+    err.body = text;
+    throw err;
+  }
+  if (!res.ok || json.type === "error") {
+    const err = new Error(`Anthropic APIエラー: ${(json.error && json.error.message) || res.statusText}`);
+    err.status = res.status;
+    err.body = JSON.stringify(json, null, 2);
+    throw err;
+  }
+  return json;
+}
+
+async function callClaude(system, messages) {
+  const settings = getSettings();
+  if (settings.apiMode === "gas") {
+    return callViaGas(settings.gasUrl, settings.model, system, messages);
+  }
+  return callViaDirect(settings.apiKey, settings.model, system, messages);
+}
+
+function extractAssistantText(apiResponse) {
+  if (!apiResponse || !Array.isArray(apiResponse.content)) return "";
+  return apiResponse.content
+    .filter(block => block.type === "text")
+    .map(block => block.text)
+    .join("\n");
+}
+
+// コードフェンス除去 → JSON.parse。失敗時は例外を投げる。
+function parseJudgementJson(rawText) {
+  let text = rawText.trim();
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  return JSON.parse(text);
+}
+
+/* ============================================================
+   判定の実行
+   ============================================================ */
+async function runJudgement() {
+  if (!images.main) return;
+
+  const runBtn = $("run-btn");
+  const statusEl = $("run-status");
+  runBtn.disabled = true;
+  statusEl.textContent = "AIが画像を解析しています…(数十秒かかる場合があります)";
+  $("result-area").innerHTML = "";
+
+  const aux = getAuxInfo();
+  const system = buildSystemPrompt();
+  const userContent = buildUserContent(aux);
+  let messages = [{ role: "user", content: userContent }];
+
+  try {
+    let apiResponse = await callClaude(system, messages);
+    let rawText = extractAssistantText(apiResponse);
+    let result;
+    let parseFailedTwice = false;
+
+    try {
+      result = parseJudgementJson(rawText);
+    } catch (firstErr) {
+      // JSONパース失敗 → 1回だけリトライ(再出力を明示的に指示)
+      statusEl.textContent = "JSONの解釈に失敗したため、再出力を依頼しています…";
+      messages = [
+        { role: "user", content: userContent },
+        { role: "assistant", content: rawText },
+        { role: "user", content: "直前の出力は有効なJSONとして解釈できませんでした。前置きやコードフェンスを含めず、指定のJSONスキーマに厳密に従った有効なJSONのみを、先頭が「{」になるように再出力してください。" }
+      ];
+      try {
+        apiResponse = await callClaude(system, messages);
+        rawText = extractAssistantText(apiResponse);
+        result = parseJudgementJson(rawText);
+      } catch (secondErr) {
+        parseFailedTwice = true;
+      }
+    }
+
+    if (parseFailedTwice || !result) {
+      renderParseFailure(rawText);
+      statusEl.textContent = "";
+      return;
+    }
+
+    renderResult(result, aux);
+    saveHistoryEntry(aux, result);
+    statusEl.textContent = "判定が完了しました。";
+  } catch (err) {
+    renderApiError(err);
+    statusEl.textContent = "";
+  } finally {
+    updateRunButtonState();
+  }
+}
+
+/* ============================================================
+   結果の描画
+   ============================================================ */
+const SETUP_LABELS = { breakout: "ブレイクアウト順張り", dip_reversal: "急落の逆張り", spike_fade: "急騰の逆張り" };
+const CONF_LABELS = { high: "確度:高", medium: "確度:中", low: "確度:低" };
+const DIRECTION_LABELS = { long: "買い(ロング)", short: "売り(ショート)" };
+
+function confClass(conf) { return ["high", "medium", "low"].includes(conf) ? conf : "medium"; }
+
+function renderResult(result, aux) {
+  const chartReading = result.chart_reading || {};
+  const entries = Array.isArray(result.entries) ? result.entries : [];
+  const noTradeZones = Array.isArray(result.no_trade_zones) ? result.no_trade_zones : [];
+  const caveats = Array.isArray(chartReading.reading_caveats) ? chartReading.reading_caveats : [];
+
+  let html = "";
+
+  if (!hasBasePrice(aux)) {
+    html += `<div class="banner warn">基準価格(前日終値・前日高値)が未入力のため、判定は画像読み取りのみに依存しています。</div>`;
+  }
+  if (chartReading.reading_confidence === "low") {
+    html += `<div class="banner warn">画像の読み取り精度が低いため、価格帯は参考値です。</div>`;
+  }
+
+  html += `<section><div class="sec-body">`;
+
+  // チャート読み取り情報
+  html += `<div class="row" style="margin-bottom:10px">
+    <span class="hint" style="margin-top:0">銘柄: ${esc(chartReading.symbol || "不明")}</span>
+    <span class="hint" style="margin-top:0">当日値幅推定: ${esc(chartReading.price_range_estimate || "-")}</span>
+    <span class="hint" style="margin-top:0">読み取り${esc(CONF_LABELS[chartReading.reading_confidence] || chartReading.reading_confidence || "-")}</span>
+  </div>`;
+
+  if (caveats.length) {
+    html += `<button type="button" class="caveats-toggle" id="caveats-toggle-btn">読み取り上の限界を表示(${caveats.length}件)</button>
+      <ul class="caveats-list" id="caveats-list" style="display:none">${caveats.map(c => `<li>${esc(c)}</li>`).join("")}</ul>`;
+  }
+
+  html += `<h3 style="margin-top:16px;margin-bottom:8px;font-size:15px;color:var(--navy)">エントリー候補</h3>`;
+  if (!entries.length) {
+    html += `<div class="hint">この日はエントリー候補が検出されませんでした。</div>`;
+  } else {
+    entries.forEach(entry => {
+      const setupClass = ["breakout", "dip_reversal", "spike_fade"].includes(entry.setup_type) ? entry.setup_type : "";
+      html += `
+      <div class="entry-card ${setupClass}">
+        <div class="entry-head">
+          <span class="entry-time">${esc(entry.time_approx || "-")}</span>
+          <span class="setup-tag ${setupClass}">${esc(SETUP_LABELS[entry.setup_type] || entry.setup_type || "-")}</span>
+          <span class="direction-tag">${esc(DIRECTION_LABELS[entry.direction] || entry.direction || "-")}</span>
+          <span class="conf-badge ${confClass(entry.confidence)}">${esc(CONF_LABELS[entry.confidence] || entry.confidence || "-")}</span>
+        </div>
+        <div class="entry-price">価格帯: ${esc(entry.price_zone || "-")}</div>
+        <div class="entry-reason">${esc(entry.reasoning || "")}</div>
+        <div class="entry-stop">損切り目安: ${esc(entry.stop_suggestion || "-")}</div>
+      </div>`;
+    });
+  }
+
+  html += `<h3 style="margin-top:18px;margin-bottom:8px;font-size:15px;color:var(--green)">見送りが正解だった局面</h3>`;
+  if (!noTradeZones.length) {
+    html += `<div class="hint">該当なし。</div>`;
+  } else {
+    noTradeZones.forEach(z => {
+      html += `<div class="notrade-card"><div class="notrade-time">${esc(z.time_approx || "-")}</div><div class="notrade-reason">${esc(z.reason || "")}</div></div>`;
+    });
+  }
+
+  if (result.overall_review) {
+    html += `<h3 style="margin-top:18px;margin-bottom:8px;font-size:15px;color:var(--navy)">この日の総評</h3>
+      <div class="overall-review">${esc(result.overall_review)}</div>`;
+  }
+
+  html += `</div></section>`;
+
+  $("result-area").innerHTML = html;
+
+  const caveatsBtn = $("caveats-toggle-btn");
+  if (caveatsBtn) {
+    caveatsBtn.addEventListener("click", () => {
+      const list = $("caveats-list");
+      list.style.display = list.style.display === "none" ? "block" : "none";
+    });
+  }
+}
+
+function renderParseFailure(rawText) {
+  $("result-area").innerHTML = `
+    <div class="banner err">JSONの解釈に2回失敗しました。以下はAIからの生の応答です。内容を手動でご確認ください。</div>
+    <section><div class="sec-body"><div class="raw-output">${esc(rawText || "(応答が空でした)")}</div></div></section>
+  `;
+}
+
+function renderApiError(err) {
+  let html = `<div class="banner err">${esc(err.message || "不明なエラーが発生しました。")}</div>`;
+  if (err.needsSetup) {
+    html += `<div class="banner info">設定セクションを開いて、GASプロキシのURL(またはAPIキー)を設定してください。</div>`;
+  }
+  if (err.status !== undefined) {
+    html += `<section><div class="sec-body">
+      <div class="hint">HTTPステータス: ${esc(String(err.status))}</div>
+      <div class="raw-output" style="margin-top:8px">${esc(err.body || "(本文なし)")}</div>
+    </div></section>`;
+  }
+  $("result-area").innerHTML = html;
+}
+
+/* ============================================================
+   履歴
+   ============================================================ */
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_HISTORY);
+    history = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(history)) history = [];
+  } catch (e) {
+    history = [];
+  }
+  renderHistoryList();
+}
+
+function saveHistoryEntry(aux, result) {
+  const entry = {
+    id: "h" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+    savedAt: nowIso(),
+    date: aux.date || "",
+    symbol: (aux.symbolCode || aux.symbolName) ? `${aux.symbolCode} ${aux.symbolName}`.trim() : (result.chart_reading && result.chart_reading.symbol) || "不明",
+    entryCount: Array.isArray(result.entries) ? result.entries.length : 0,
+    aux,
+    result
+  };
+  history.unshift(entry);
+  if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+  try {
+    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
+  } catch (e) {
+    // 保存容量超過等は握りつぶし、UI上の一覧表示は継続する
+  }
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  $("history-count").textContent = `記録 ${history.length}件`;
+  const listEl = $("history-list");
+  if (!history.length) {
+    listEl.innerHTML = `<div class="history-empty">まだ判定履歴がありません。</div>`;
+    return;
+  }
+  listEl.innerHTML = history.map(h => `
+    <div class="history-item" data-history-id="${esc(h.id)}">
+      <span class="h-date">${esc(h.date || h.savedAt.slice(0, 10))}</span>
+      <span class="h-symbol">${esc(h.symbol)}</span>
+      <span class="h-count">エントリー ${h.entryCount}件</span>
+    </div>
+  `).join("");
+  listEl.querySelectorAll("[data-history-id]").forEach(el => {
+    el.addEventListener("click", () => {
+      const h = history.find(x => x.id === el.getAttribute("data-history-id"));
+      if (h) {
+        renderResult(h.result, h.aux);
+        window.scrollTo({ top: $("result-area").offsetTop - 20, behavior: "smooth" });
+      }
+    });
+  });
+}
+
+function exportHistory() {
+  const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `entry-review-history_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function clearHistory() {
+  if (!confirm("判定履歴をすべて削除します。よろしいですか？")) return;
+  history = [];
+  localStorage.removeItem(STORAGE_KEY_HISTORY);
+  renderHistoryList();
+}
+
+/* ============================================================
+   初期化
+   ============================================================ */
+function init() {
+  wireCollapsibles();
+  loadSettings();
+
+  $("api-mode").addEventListener("change", updateApiModeFields);
+  $("save-settings-btn").addEventListener("click", saveSettings);
+
+  wireDropzone("main", "dz-main", "dz-main-content", "file-input-main");
+  wireDropzone("oneMin", "dz-1min", "dz-1min-content", "file-input-1min");
+  wirePasteHandler();
+  updateRunButtonState();
+
+  $("run-btn").addEventListener("click", runJudgement);
+
+  $("export-history-btn").addEventListener("click", exportHistory);
+  $("clear-history-btn").addEventListener("click", clearHistory);
+  loadHistory();
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
