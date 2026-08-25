@@ -741,7 +741,27 @@ function renderByeConfig(){
       '</div>';
   }
   html += '<div class="hint">名前を入力すると候補が出ます(完全一致ならEnterでも追加可)。▾を押すと一覧から選べます。指定した人はその試合に組まれません(何人でも可)。残りが奇数のときは、抜け回数が均等になるように自動でもう1人が抜け番になります。</div>';
+  html += '<div class="row" style="margin-top:8px"><button class="ghost small" id="toggle-bye-bulk-btn" type="button">まとめて追加</button></div>' +
+    '<div id="bye-bulk-area" style="display:none;margin-top:8px">' +
+    '<div class="usage" style="margin-bottom:8px"><b>入力のルール</b><br>' +
+    '・<b>行の先頭に試合番号</b>を書き、そのあとに抜ける人の名前を並べる(区切りはスペース・「、」・「,」)<br>' +
+    '・違う試合の指定を追加したいときは<b>改行</b>して1行ずつ書く<br>' +
+    '例:<b>1 佐藤 鈴木</b> → 第1試合は佐藤と鈴木が抜け</div>' +
+    '<textarea id="bye-bulk-input" rows="3" placeholder="例)&#10;1 佐藤 鈴木&#10;2 田中&#10;3、高橋,伊藤"></textarea>' +
+    '<div class="row" style="margin-top:6px">' +
+    '<button class="small" id="bye-bulk-add-btn" type="button">一括で抜けを追加</button>' +
+    '<span class="hint">登録済みの選手名のみ有効です。一覧にない名前や確定済みの試合を含む行はスキップします。</span>' +
+    '</div></div>';
   wrap.innerHTML = html;
+  $("toggle-bye-bulk-btn").addEventListener("click", () => {
+    const a = $("bye-bulk-area");
+    a.style.display = a.style.display === "none" ? "" : "none";
+  });
+  $("bye-bulk-add-btn").addEventListener("click", () => {
+    const text = $("bye-bulk-input").value.trim();
+    if(!text){ alert("試合番号と抜ける人の名前を入力してください(例: 1 佐藤 鈴木)。"); return; }
+    if(bulkAddByes(text)) $("bye-bulk-input").value = "";
+  });
   wrap.querySelectorAll("[data-bye-del]").forEach(b =>
     b.addEventListener("click", () => {
       const [r, id] = b.dataset.byeDel.split(":").map(Number);
@@ -771,18 +791,69 @@ function clampRounds(){
   if(v > 20) v = 20;
   return v;
 }
+// 抜け番の一括登録: 「試合番号 名前 名前 …」を1行ずつ
+function bulkAddByes(text){
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  const rounds = clampRounds();
+  let added = 0;
+  const errNoRound = [], errRange = [], errFixed = [], errUnknown = [], errDup = [];
+  lines.forEach(line => {
+    const tokens = line.split(/[\s,、,]+/).map(s => s.trim()).filter(Boolean);
+    if(tokens.length < 2 || !/^\d+$/.test(tokens[0])){ errNoRound.push(line); return; }
+    const r = parseInt(tokens.shift(), 10);
+    if(r < 1 || r > rounds){ errRange.push(line + "(第" + r + "試合は範囲外。試合数は" + rounds + ")"); return; }
+    if(r <= fixedRounds.length){ errFixed.push(line + "(第" + r + "試合は確定済み)"); return; }
+    const unknown = [];
+    tokens.forEach(name => {
+      const p = players.find(pl => pl.name === name);
+      if(!p){ unknown.push(name); return; }
+      if(!manualByes[r]) manualByes[r] = [];
+      if(manualByes[r].includes(p.id)){ errDup.push(name + "(第" + r + "試合に登録済み)"); return; }
+      manualByes[r].push(p.id);
+      added++;
+    });
+    if(unknown.length) errUnknown.push(line + "(未登録:" + unknown.join("・") + ")");
+  });
+  Object.keys(manualByes).forEach(r => { if(!manualByes[r].length) delete manualByes[r]; });
+  saveState();
+  renderByeConfig();
+  let msg = added + "人の抜け指定を追加しました。";
+  const skipped = errNoRound.length + errRange.length + errFixed.length + errUnknown.length + errDup.length;
+  if(skipped){
+    msg += "\n\nスキップした内容(" + skipped + "):";
+    if(errNoRound.length) msg += "\n【先頭に試合番号がない】\n" + errNoRound.join("\n");
+    if(errRange.length) msg += "\n【試合番号が範囲外】\n" + errRange.join("\n");
+    if(errFixed.length) msg += "\n【確定済みの試合】\n" + errFixed.join("\n");
+    if(errUnknown.length) msg += "\n【一覧にない名前】\n" + errUnknown.join("\n");
+    if(errDup.length) msg += "\n【すでに指定済み】\n" + errDup.join("\n");
+  }
+  alert(msg);
+  return added;
+}
 
 /* ============ 確定(途中からの組み直し) ============ */
 function renderFixedBanner(){
   const wrap = $("fixed-banner-area");
   if(!fixedRounds.length){ wrap.innerHTML = ""; return; }
-  wrap.innerHTML = '<div class="fixed-banner">第' + fixedRounds.length + '試合まで確定済みです。' +
-    'メンバーや設定を変更して「組み合わせを作成」を押すと、第' + (fixedRounds.length + 1) +
+  const n = fixedRounds.length;
+  let opts = '<option value="0">すべて解除</option>';
+  for(let r = 1; r < n; r++) opts += '<option value="' + r + '">第' + r + '試合までに戻す</option>';
+  wrap.innerHTML = '<div class="fixed-banner">第' + n + '試合まで確定済みです。' +
+    'メンバーや設定を変更して「続きを作成」を押すと、第' + (n + 1) +
     '試合以降だけが組み直されます(確定分との再戦は避けます)。' +
+    (n > 1 ? '<select id="unfix-to" style="font-size:12.5px;padding:4px 8px">' + opts + '</select>' : '') +
     '<button class="ghost small" id="unfix-btn">確定を解除</button></div>';
   $("unfix-btn").addEventListener("click", () => {
-    if(confirm("確定を解除しますか?次回の作成では全試合が組み直されます。")){
-      fixedRounds = [];
+    const keep = n > 1 ? (+$("unfix-to").value || 0) : 0;
+    const msg = keep
+      ? "第" + keep + "試合までを残して、第" + (keep + 1) + "試合以降の確定を解除しますか?"
+      : "すべての確定を解除しますか?次回の作成では全試合が組み直されます。";
+    if(confirm(msg)){
+      fixedRounds = fixedRounds.slice(0, keep);
+      if(lastResult && lastResult.schedule){
+        lastResult.schedule.forEach((rd, i) => rd.fixed = i < keep);
+        renderResults(lastResult, true);
+      }
       renderAll();
     }
   });
@@ -794,7 +865,9 @@ function fixUpTo(n){
     byes: (rd.byes || []).map(snap),
     pairs: rd.pairs.map(([a, b]) => [snap(a), snap(b)])
   }));
+  lastResult.schedule.forEach((rd, i) => rd.fixed = i < n);
   renderAll();
+  renderResults(lastResult, true);
   window.scrollTo({top: 0, behavior: "smooth"});
 }
 
@@ -986,7 +1059,9 @@ function renderResults(result, skipScroll){
       (isNext ? '<span class="next-tag">次の試合</span>' : '') +
       (round.byes && round.byes.length ? '<span class="bye-note">抜け:<b>' +
         round.byes.map(b => esc(b.name) + '(' + esc(b.rank) + (clubMode() && b.club ? '・' + esc(b.club) : '') + ')').join("、") + '</b></span>' : '') +
-      (!round.fixed ? '<button class="ghost small fix-here no-print" data-fix="' + round.round + '">ここまで確定</button>' : '') +
+      (!round.fixed
+        ? '<button class="ghost small fix-here no-print" data-fix="' + round.round + '">ここまで確定</button>'
+        : '<button class="ghost small fix-here no-print" data-unfix="' + round.round + '">ここから確定解除</button>') +
       '</div><div class="matches">';
     const sorted = round.pairs.slice().sort((p, q) =>
       Math.min(rankIdx(p[0].rank), rankIdx(p[1].rank)) - Math.min(rankIdx(q[0].rank), rankIdx(q[1].rank)));
@@ -1062,6 +1137,20 @@ function renderResults(result, skipScroll){
   wrap.appendChild(bar);
   wrap.querySelectorAll(".fix-here").forEach(b =>
     b.addEventListener("click", () => {
+      if(b.dataset.unfix !== undefined){
+        // この試合以降の確定を解除(= この試合の1つ前までを残す)
+        const r = +b.dataset.unfix;
+        const keep = r - 1;
+        const msg = keep
+          ? "第" + r + "試合以降の確定を解除しますか?(第" + keep + "試合までは確定のまま残ります)"
+          : "すべての確定を解除しますか?次回の作成では全試合が組み直されます。";
+        if(!confirm(msg)) return;
+        fixedRounds = fixedRounds.slice(0, keep);
+        result.schedule.forEach((rd, i) => rd.fixed = i < keep);
+        renderAll();
+        renderResults(result, true);
+        return;
+      }
       const n = +b.dataset.fix;
       fixUpTo(n);
       alert("第" + n + "試合までを確定しました。メンバーや抜け指定を変えたら「続きを作成」を押してください。第" + (n + 1) + "試合以降だけが組み直されます。");
