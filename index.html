@@ -270,7 +270,7 @@ button:disabled{opacity:.6;cursor:default}
 <section id="sec-settings">
   <div class="sec-head"><span class="sec-tag">設定</span><h2>試合設定</h2></div>
   <div class="sec-body">
-    <div class="usage"><b>使い方</b>:試合数を決め、必要なら「対戦希望」(当てたい2人)と「対戦NG」(当てたくない2人)を追加。人の指定はどの欄も、名前の入力(途中から候補が出ます)と▾の一覧選択のどちらでもOK。抜ける人は試合ごとに何人でも指定でき、残りが奇数なら自動でもう1人抜け番になります。</div>
+    <div class="usage"><b>使い方</b>:試合数を決め、必要なら「対戦希望」(当てたい2人)と「対戦NG」(当てたくない2人)を追加。人の指定はどの欄も、名前の入力(途中から候補が出ます)と▾の一覧選択のどちらでもOK。抜ける人は試合ごとに何人でも指定でき、残りが奇数なら自動でもう1人抜け番になります。希望・NGの一覧は、選手名をタップするとその人の分だけ上にまとめて表示できます。</div>
     <div class="row" id="anc-rounds">
       <label for="rounds-input" style="font-weight:600;color:var(--ai)">試合数</label>
       <span class="stepper">
@@ -327,7 +327,7 @@ button:disabled{opacity:.6;cursor:default}
         <button class="small" id="add-req-btn">希望を追加</button>
         <button class="ghost small" id="toggle-req-bulk-btn">まとめて追加</button>
       </div>
-      <div class="hint">指定した2人が当たるように優先して組みます。「第◯試合」を選ぶとその試合で取り(それより前の試合では当てません)、「試合指定なし」ならどこかの試合で取ります。</div>
+      <div class="hint">指定した2人が当たるように優先して組みます。「第◯試合」を選ぶとその試合で取り(それより前の試合では当てません)、「試合指定なし」ならどこかの試合で取ります。<br>下の一覧で<b>選手名をタップすると、その人を含む組み合わせが上に並んで色が付きます</b>(もう一度タップか「解除」で戻ります)。</div>
       <div id="req-bulk-area" style="display:none;margin-top:8px">
         <div class="usage" style="margin-bottom:8px"><b>入力のルール</b><br>・違う組み合わせを追加したいときは<b>改行</b>して1行ずつ書く<br>・何試合目でやるか指定したいときは、<b>名前のあとにスペースを空けて数字</b>を入れる(例:<b>田中 高橋 3</b> → 第3試合)</div>
         <textarea id="req-bulk-input" rows="3" placeholder="1行に対戦させたい2人。区切りはスペース・「、」・「,」&#10;例)&#10;佐藤 鈴木&#10;田中、高橋 3"></textarea>
@@ -348,7 +348,7 @@ button:disabled{opacity:.6;cursor:default}
         <button class="small" id="add-ng-btn" style="background:var(--aka)">NGを追加</button>
         <button class="ghost small" id="toggle-ng-bulk-btn">まとめて追加</button>
       </div>
-      <div class="hint">指定した2人が当たらないように組みます。</div>
+      <div class="hint">指定した2人が当たらないように組みます。<br>下の一覧で<b>選手名をタップすると、その人を含む組み合わせが上に並んで色が付きます</b>(もう一度タップか「解除」で戻ります)。</div>
       <div id="ng-bulk-area" style="display:none;margin-top:8px">
         <div class="usage" style="margin-bottom:8px"><b>入力のルール</b><br>・違う組み合わせを追加したいときは<b>改行</b>して1行ずつ書く</div>
         <textarea id="ng-bulk-input" rows="3" placeholder="1行に当てたくない2人。区切りはスペース・「、」・「,」&#10;例)&#10;佐藤 鈴木&#10;田中、高橋"></textarea>
