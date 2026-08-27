@@ -28,10 +28,18 @@ h1{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.14em}
 .header-sub{font-size:12.5px;color:#B9BFCE;letter-spacing:.06em}
 main{max-width:860px;margin:0 auto;padding:20px 16px 80px}
 html{scroll-behavior:smooth}
-#quick-nav{position:sticky;top:0;z-index:50;background:rgba(250,250,247,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:7px 12px;display:flex;gap:8px;justify-content:center}
-#quick-nav a{font-size:12.5px;font-weight:600;color:var(--ai);text-decoration:none;padding:5px 12px;border:1px solid #D5D9E3;border-radius:999px;background:#fff}
-#quick-nav a:active{background:#EEF1F7}
+#quick-nav{position:sticky;top:0;z-index:50;background:rgba(250,250,247,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:7px 12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#quick-nav a,#quick-nav button.nav-btn{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ai);text-decoration:none;padding:5px 12px;border:1px solid #D5D9E3;border-radius:999px;background:#fff;cursor:pointer;letter-spacing:0}
+#quick-nav a:active,#quick-nav button.nav-btn:active{background:#EEF1F7}
+#quick-nav button.nav-btn:hover{filter:none;background:#EEF1F7}
+#quick-nav button.nav-btn[aria-expanded="true"]{background:var(--ai);color:#fff;border-color:var(--ai)}
 #quick-nav a.nav-result{border-color:var(--tatami);color:var(--tatami)}
+#quick-nav a.nav-help{border-color:#9A7B3F;color:#7D6330;background:#FDFBF5}
+.nav-item{position:relative;display:inline-flex}
+.nav-menu{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);min-width:180px;background:#fff;border:1px solid #CFCEC7;border-radius:9px;box-shadow:0 8px 22px rgba(30,35,60,.18);padding:5px;z-index:60}
+.nav-menu button{display:block;width:100%;text-align:left;background:#fff;color:var(--sumi);font-weight:400;font-size:13.5px;border:none;border-radius:6px;padding:8px 11px;letter-spacing:0}
+.nav-menu button:hover{background:#EEF1F7;filter:none}
+.nav-menu .nav-sep{border-top:1px solid #F0EFEA;margin:4px 2px}
 .next-tag{font-size:11px;font-weight:700;color:#fff;background:var(--tatami);border-radius:4px;padding:1px 8px}
 .round-card.next-round{border-color:var(--tatami);box-shadow:0 0 0 1px var(--tatami)}
 .stepper{display:inline-flex;align-items:center;gap:0;border:1px solid #CFCEC7;border-radius:7px;overflow:hidden}
@@ -103,6 +111,24 @@ button:disabled{opacity:.6;cursor:default}
 .club-tag{font-size:10.5px;color:#5A5A63;background:#F2F2ED;border:1px solid var(--line);border-radius:4px;padding:0 5px;white-space:nowrap}
 .player-card .club-tag{font-size:10px}
 .club-line{font-size:11px;color:var(--usuzumi);margin-top:1px}
+/* ルール設定 */
+.rule-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:#fff}
+.rule-row.off{background:#F7F7F3;opacity:.62}
+.rule-no{font-family:var(--serif);font-weight:700;font-size:12px;color:#fff;background:var(--ai);border-radius:50%;width:21px;height:21px;display:flex;align-items:center;justify-content:center;flex:none}
+.rule-row.off .rule-no{background:var(--usuzumi)}
+.rule-main{flex:1;min-width:0}
+.rule-name{font-size:14px;font-weight:600;color:var(--sumi)}
+.rule-desc{font-size:11.5px;color:var(--usuzumi);line-height:1.5}
+.rule-move{display:flex;gap:3px;flex:none}
+.rule-move button{background:#F2F2ED;color:var(--ai);border:1px solid #DDDCD5;border-radius:5px;padding:3px 8px;font-size:11px;line-height:1.3}
+.rule-move button:disabled{opacity:.35}
+.rule-row input[type=checkbox]{width:17px;height:17px;flex:none}
+/* 希望・NGリストのフィルタ */
+.req-item.hit{background:#FFF8E1;border-color:#E3CE8A;box-shadow:0 0 0 1px #E3CE8A}
+.req-item .pname{cursor:pointer;border-bottom:1px dotted var(--usuzumi)}
+.req-item .pname:hover{color:var(--ai);border-bottom-color:var(--ai)}
+.filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--usuzumi);margin-top:8px}
+.filter-bar .fname{font-weight:700;color:var(--ai)}
 .bye-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--line)}
 .bye-row:last-of-type{border-bottom:none}
 .bye-label{white-space:nowrap;color:var(--ai);font-weight:600;font-size:13.5px;min-width:64px}
@@ -170,10 +196,17 @@ button:disabled{opacity:.6;cursor:default}
   </div>
 </header>
 <nav id="quick-nav" class="no-print">
-  <a href="#sec-players">選手</a>
-  <a href="#sec-settings">設定</a>
-  <a href="#sec-data">記録</a>
+  <span class="nav-item" data-nav="players">
+    <button type="button" class="nav-btn" aria-expanded="false">選手 ▾</button>
+  </span>
+  <span class="nav-item" data-nav="settings">
+    <button type="button" class="nav-btn" aria-expanded="false">設定 ▾</button>
+  </span>
+  <span class="nav-item" data-nav="data">
+    <button type="button" class="nav-btn" aria-expanded="false">記録 ▾</button>
+  </span>
   <a href="#results" class="nav-result" id="nav-result" style="display:none">結果へ</a>
+  <a href="#" class="nav-help" id="help-link">使い方はこちら</a>
 </nav>
 <main>
 
@@ -186,7 +219,7 @@ button:disabled{opacity:.6;cursor:default}
   <div class="sec-head"><span class="sec-tag">選手</span><h2>選手登録</h2></div>
   <div class="sec-body">
     <div class="usage"><b>使い方</b>:名前と級を選んで「追加」。複数人まとめて入れるなら「まとめて追加」で名前を並べて書き、級を1回選ぶだけ。属性(現役/OBOG)はOBOG会モード用、所属会は「会を入れる」をオンにしたときだけ使います(どちらも普段は不要)。名前の×で削除できます。</div>
-    <div class="row" style="margin-bottom:10px">
+    <div class="row" id="anc-club" style="margin-bottom:10px">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ai);cursor:pointer">
         <input type="checkbox" id="club-mode" style="width:17px;height:17px">
         会を入れる
@@ -238,7 +271,7 @@ button:disabled{opacity:.6;cursor:default}
   <div class="sec-head"><span class="sec-tag">設定</span><h2>試合設定</h2></div>
   <div class="sec-body">
     <div class="usage"><b>使い方</b>:試合数を決め、必要なら「対戦希望」(当てたい2人)と「対戦NG」(当てたくない2人)を追加。人の指定はどの欄も、名前の入力(途中から候補が出ます)と▾の一覧選択のどちらでもOK。抜ける人は試合ごとに何人でも指定でき、残りが奇数なら自動でもう1人抜け番になります。</div>
-    <div class="row">
+    <div class="row" id="anc-rounds">
       <label for="rounds-input" style="font-weight:600;color:var(--ai)">試合数</label>
       <span class="stepper">
         <button type="button" id="rounds-minus" aria-label="試合数を減らす">−</button>
@@ -248,7 +281,7 @@ button:disabled{opacity:.6;cursor:default}
       <span class="hint">1人あたりの試合数(=回戦数)です。</span>
     </div>
 
-    <div class="row" style="margin-top:16px">
+    <div class="row" id="anc-obog" style="margin-top:16px">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ai);cursor:pointer">
         <input type="checkbox" id="obog-mode" style="width:17px;height:17px">
         OBOG会モード
@@ -256,7 +289,35 @@ button:disabled{opacity:.6;cursor:default}
       <span class="hint" style="margin-top:0">「違う属性×同じ級」を最優先に組みます。難しい場合は級より属性違いを優先。属性なしの人は通常通り。</span>
     </div>
 
-    <div style="margin-top:18px">
+    <div class="row" id="anc-tolerance" style="margin-top:16px">
+      <label for="rank-tolerance" style="font-weight:600;color:var(--ai);white-space:nowrap">級の許容差</label>
+      <span class="stepper">
+        <button type="button" id="tol-minus" aria-label="許容差を減らす">−</button>
+        <input type="number" id="rank-tolerance" min="0" max="9" value="0">
+        <button type="button" id="tol-plus" aria-label="許容差を増やす">＋</button>
+      </span>
+      <span class="hint" style="margin-top:0">ここで指定した段階までの級差は「同じ級」として扱います(例:2なら A+とB+ が同級扱い)。0なら完全に同じ級のみ。</span>
+    </div>
+
+    <div style="margin-top:16px" id="anc-rules">
+      <div class="row">
+        <span style="font-weight:600;color:var(--ai)">組み方のルール</span>
+        <button class="ghost small" type="button" id="toggle-rules-btn">詳細を開く</button>
+        <span class="hint" style="margin-top:0">通常は変更不要です。優先順位や使う条件を変えたいときだけ。</span>
+      </div>
+      <div id="rules-area" style="display:none;margin-top:8px">
+        <div class="usage" style="margin-bottom:8px"><b>使い方</b><br>
+          ・上にあるルールほど優先されます。<b>▲▼</b>で順番を入れ替えられます<br>
+          ・チェックを外すと、そのルールを<b>考慮しなくなります</b><br>
+          ・「初期設定に戻す」でいつでも既定の並びに戻せます</div>
+        <div id="rules-list"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="ghost small" type="button" id="reset-rules-btn">初期設定に戻す</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px" id="anc-req">
       <div style="font-weight:600;color:var(--ai);margin-bottom:6px">対戦希望</div>
       <div class="row">
         <span class="picker" id="req-a"></span>
@@ -278,7 +339,7 @@ button:disabled{opacity:.6;cursor:default}
       <div class="req-list" id="req-list"></div>
     </div>
 
-    <div style="margin-top:18px">
+    <div style="margin-top:18px" id="anc-ng">
       <div style="font-weight:600;color:var(--aka);margin-bottom:6px">対戦NG</div>
       <div class="row">
         <span class="picker" id="ng-a"></span>
@@ -400,7 +461,8 @@ function saveState(){
       rounds: $("rounds-input").value,
       useHistory: $("use-history").checked,
       obogMode: $("obog-mode").checked,
-      clubMode: $("club-mode").checked
+      clubMode: $("club-mode").checked,
+      ruleOrder, ruleEnabled, rankTolerance
     }));
   }catch(e){ storageOk = false; }
 }
@@ -435,6 +497,19 @@ function applyData(d, opts){
   if(typeof d.useHistory === "boolean") $("use-history").checked = d.useHistory;
   if(typeof d.obogMode === "boolean") $("obog-mode").checked = d.obogMode;
   if(typeof d.clubMode === "boolean") $("club-mode").checked = d.clubMode;
+  // ルール設定(不正な値は既定に戻す)
+  if(Array.isArray(d.ruleOrder)){
+    const valid = d.ruleOrder.filter(k => RULE_INFO[k]);
+    DEFAULT_RULE_ORDER.forEach(k => { if(!valid.includes(k)) valid.push(k); });
+    ruleOrder = valid;
+  }else ruleOrder = DEFAULT_RULE_ORDER.slice();
+  ruleEnabled = {};
+  DEFAULT_RULE_ORDER.forEach(k => ruleEnabled[k] = true);
+  if(d.ruleEnabled && typeof d.ruleEnabled === "object"){
+    Object.keys(d.ruleEnabled).forEach(k => { if(RULE_INFO[k]) ruleEnabled[k] = !!d.ruleEnabled[k]; });
+  }
+  rankTolerance = (typeof d.rankTolerance === "number" && d.rankTolerance >= 0 && d.rankTolerance <= 9) ? d.rankTolerance : 0;
+  $("rank-tolerance").value = rankTolerance;
 }
 function loadState(){
   try{
@@ -622,22 +697,57 @@ const pickers = {};
 const clubPickers = {};
 
 /* ============ 希望・NG ============ */
+let pairFocus = {"req-list": null, "ng-list": null};   // 各リストで注目中の選手id
 function renderPairList(listId, arr, isNg){
   const wrap = $(listId);
   wrap.innerHTML = "";
-  arr.forEach((r, i) => {
+  const focusId = pairFocus[listId];
+  const focusPlayer = focusId ? byId(focusId) : null;
+  if(focusId && !focusPlayer) pairFocus[listId] = null;
+  // 注目中の選手を含むペアを先頭へ(元の順序は保ったまま)
+  const idx = arr.map((r, i) => i);
+  if(focusPlayer){
+    idx.sort((x, y) => {
+      const hx = (arr[x].aId === focusId || arr[x].bId === focusId) ? 0 : 1;
+      const hy = (arr[y].aId === focusId || arr[y].bId === focusId) ? 0 : 1;
+      return hx - hy || x - y;
+    });
+  }
+  idx.forEach(i => {
+    const r = arr[i];
     const a = byId(r.aId), b = byId(r.bId);
     if(!a || !b) return;
+    const hit = focusPlayer && (r.aId === focusId || r.bId === focusId);
     const div = document.createElement("div");
-    div.className = "req-item" + (isNg ? " ng" : "");
-    div.innerHTML = esc(a.name) + '(' + esc(a.rank) + ') <span class="vs">' + (isNg ? "×" : "対") + '</span> ' +
-      esc(b.name) + '(' + esc(b.rank) + ')' +
+    div.className = "req-item" + (isNg ? " ng" : "") + (hit ? " hit" : "");
+    div.innerHTML =
+      '<span class="pname" data-focus="' + r.aId + '">' + esc(a.name) + '</span>(' + esc(a.rank) + ') ' +
+      '<span class="vs">' + (isNg ? "×" : "対") + '</span> ' +
+      '<span class="pname" data-focus="' + r.bId + '">' + esc(b.name) + '</span>(' + esc(b.rank) + ')' +
       (!isNg && r.round ? ' <span class="flag wish" style="margin-left:4px">第' + r.round + '試合で</span>' : '') +
       '<button class="x small danger-ghost" style="margin-left:auto" data-i="' + i + '">削除</button>';
     wrap.appendChild(div);
   });
+  if(focusPlayer){
+    const n = arr.filter(r => r.aId === focusId || r.bId === focusId).length;
+    const bar = document.createElement("div");
+    bar.className = "filter-bar";
+    bar.innerHTML = '<span class="fname">' + esc(focusPlayer.name) + '</span>を含む' + n + '件を上に表示中' +
+      '<button class="ghost small" type="button" data-clear-focus="1">解除</button>';
+    wrap.appendChild(bar);
+    bar.querySelector("[data-clear-focus]").addEventListener("click", () => {
+      pairFocus[listId] = null;
+      renderPairList(listId, arr, isNg);
+    });
+  }
   wrap.querySelectorAll("[data-i]").forEach(b =>
     b.addEventListener("click", () => { arr.splice(+b.dataset.i, 1); renderAll(); }));
+  wrap.querySelectorAll("[data-focus]").forEach(el =>
+    el.addEventListener("click", () => {
+      const id = +el.dataset.focus;
+      pairFocus[listId] = (pairFocus[listId] === id) ? null : id;
+      renderPairList(listId, arr, isNg);
+    }));
 }
 function addPairTo(arr, otherArr, aId, bId, label, otherLabel, round){
   if(!aId || !bId){ alert("2人とも選手を選んでください(名前を入力するか▾で一覧から選択)。"); return; }
@@ -704,6 +814,41 @@ function bulkAddPairs(text, arr, otherArr, label, otherLabel, allowRound){
   }
   alert(msg);
   return added;
+}
+
+/* ============ ルール設定UI ============ */
+function renderRules(){
+  const wrap = $("rules-list");
+  if(!wrap) return;
+  wrap.innerHTML = ruleOrder.map((key, i) => {
+    const info = RULE_INFO[key];
+    const on = ruleEnabled[key] !== false;
+    return '<div class="rule-row' + (on ? '' : ' off') + '">' +
+      '<span class="rule-no">' + (i + 1) + '</span>' +
+      '<input type="checkbox" data-rule-on="' + key + '"' + (on ? ' checked' : '') + ' aria-label="' + esc(info.label) + 'を使う">' +
+      '<span class="rule-main"><span class="rule-name">' + esc(info.label) + '</span>' +
+      '<span class="rule-desc"><br>' + esc(info.desc) + '</span></span>' +
+      '<span class="rule-move">' +
+      '<button type="button" data-rule-up="' + key + '"' + (i === 0 ? ' disabled' : '') + ' aria-label="優先順位を上げる">▲</button>' +
+      '<button type="button" data-rule-down="' + key + '"' + (i === ruleOrder.length - 1 ? ' disabled' : '') + ' aria-label="優先順位を下げる">▼</button>' +
+      '</span></div>';
+  }).join("");
+  wrap.querySelectorAll("[data-rule-on]").forEach(cb =>
+    cb.addEventListener("change", () => {
+      ruleEnabled[cb.dataset.ruleOn] = cb.checked;
+      renderRules(); saveState();
+    }));
+  wrap.querySelectorAll("[data-rule-up]").forEach(b =>
+    b.addEventListener("click", () => { moveRule(b.dataset.ruleUp, -1); }));
+  wrap.querySelectorAll("[data-rule-down]").forEach(b =>
+    b.addEventListener("click", () => { moveRule(b.dataset.ruleDown, 1); }));
+}
+function moveRule(key, dir){
+  const i = ruleOrder.indexOf(key);
+  const j = i + dir;
+  if(i < 0 || j < 0 || j >= ruleOrder.length) return;
+  [ruleOrder[i], ruleOrder[j]] = [ruleOrder[j], ruleOrder[i]];
+  renderRules(); saveState();
 }
 
 function renderReqRoundOptions(){
@@ -880,24 +1025,54 @@ function buildNgSet(){
   });
   return s;
 }
+/* ============ 対戦ルール(優先順位・有効/無効を変更可能) ============ */
+// order の並び順が優先順位(先頭ほど強い)。enabled で個別にオン/オフ。
+const DEFAULT_RULE_ORDER = ["ng", "repeat", "history", "request", "club", "obog", "rank"];
+const RULE_INFO = {
+  ng:      {label: "対戦NG",       desc: "指定した2人を当てない"},
+  repeat:  {label: "再戦回避",      desc: "同じ相手と2回当てない"},
+  history: {label: "過去の対戦",    desc: "前回までの練習で当たった相手を避ける"},
+  request: {label: "対戦希望",      desc: "指定した2人を当てる"},
+  club:    {label: "同じ会を避ける", desc: "「会を入れる」がオンのとき有効"},
+  obog:    {label: "属性違いを優先", desc: "OBOG会モードがオンのとき有効"},
+  rank:    {label: "近い級",        desc: "同じ級・級差の小さい相手を優先"}
+};
+let ruleOrder = DEFAULT_RULE_ORDER.slice();
+let ruleEnabled = {};
+DEFAULT_RULE_ORDER.forEach(k => ruleEnabled[k] = true);
+let rankTolerance = 0;   // n段階までの級差を「同級」とみなす
+
+// 優先順位に応じた重みを算出(先頭ほど桁が大きい)
+function ruleWeight(key){
+  const i = ruleOrder.indexOf(key);
+  if(i < 0) return 0;
+  return Math.pow(20, ruleOrder.length - i);   // 例: 1位=20^7, 最下位=20^1
+}
+const ruleOn = key => ruleEnabled[key] !== false && ruleOrder.includes(key);
+// 級差を許容幅で丸める(rankTolerance 以内は差0とみなす)
+function effRankDiff(a, b){
+  const d = Math.abs(rankIdx(a.rank) - rankIdx(b.rank));
+  return Math.max(0, d - rankTolerance);
+}
 function pairCost(a, b, played, pendingReqs, ngSet, roundNo){
   let c = 0;
   const k = nameKey(a.name, b.name);
-  if(ngSet.has(k)) c += 2000000;                     // NGは最重(事実上組まない)
-  c += (played[k] || 0) * 100000;                    // 同日・確定分との再戦
-  if(useHistory()) c += (history.pairs[k] || 0) * 60000;  // 過去の練習での対戦
-  if(clubMode() && a.club && b.club && a.club === b.club)
-    c += 20000;                                      // 同じ会同士を回避(級差・属性より重い)
-  if(obogMode() && a.attr && b.attr && a.attr === b.attr)
-    c += 10000;                                      // OBOG会モード: 同属性ペナルティ(級差より重い)
-  const d = Math.abs(rankIdx(a.rank) - rankIdx(b.rank));
-  c += d * d * 100;                                  // 級差ペナルティ(近い級を優先)
-  const req = pendingReqs.find(q => !q.done && nameKey(q.aName, q.bName) === k);
-  if(req){
-    if(req.tRound == null || req.tRound === roundNo)
-      c -= 50000;                                    // 未消化の希望(指定なし or 指定試合)は強く優先
-    else if(roundNo < req.tRound)
-      c += 20000;                                    // 指定試合より前には当てない(取っておく)
+  if(ruleOn("ng") && ngSet.has(k)) c += ruleWeight("ng");
+  if(ruleOn("repeat")) c += (played[k] || 0) * ruleWeight("repeat");
+  if(ruleOn("history") && useHistory()) c += (history.pairs[k] || 0) * ruleWeight("history");
+  if(ruleOn("club") && clubMode() && a.club && b.club && a.club === b.club) c += ruleWeight("club");
+  if(ruleOn("obog") && obogMode() && a.attr && b.attr && a.attr === b.attr) c += ruleWeight("obog");
+  if(ruleOn("rank")){
+    const d = effRankDiff(a, b);
+    // 級差は連続量なので、最大差でも1段位分を超えないよう正規化
+    c += (d * d / 81) * ruleWeight("rank");
+  }
+  if(ruleOn("request")){
+    const req = pendingReqs.find(q => !q.done && nameKey(q.aName, q.bName) === k);
+    if(req){
+      if(req.tRound == null || req.tRound === roundNo) c -= ruleWeight("request");
+      else if(roundNo < req.tRound) c += ruleWeight("request") * 0.4;   // 指定試合まで取っておく
+    }
   }
   return c;
 }
@@ -1560,6 +1735,7 @@ $("export-btn").addEventListener("click", () => {
     useHistory: $("use-history").checked,
     obogMode: $("obog-mode").checked,
     clubMode: $("club-mode").checked,
+    ruleOrder, ruleEnabled, rankTolerance,
     exportedAt: new Date().toISOString()
   }, null, 2);
   download("かるた対戦組データ_" + stamp() + ".json", data, "application/json");
@@ -1682,6 +1858,32 @@ $("clear-history-btn").addEventListener("click", () => {
 });
 $("use-history").addEventListener("change", saveState);
 $("obog-mode").addEventListener("change", saveState);
+/* 級の許容差 */
+function setTolerance(v){
+  rankTolerance = Math.max(0, Math.min(9, v));
+  $("rank-tolerance").value = rankTolerance;
+  saveState();
+}
+$("rank-tolerance").addEventListener("input", () => {
+  const v = parseInt($("rank-tolerance").value, 10);
+  setTolerance(isNaN(v) ? 0 : v);
+});
+$("tol-minus").addEventListener("click", () => setTolerance(rankTolerance - 1));
+$("tol-plus").addEventListener("click", () => setTolerance(rankTolerance + 1));
+/* ルール設定 */
+$("toggle-rules-btn").addEventListener("click", () => {
+  const a = $("rules-area");
+  const open = a.style.display === "none";
+  a.style.display = open ? "" : "none";
+  $("toggle-rules-btn").textContent = open ? "詳細を閉じる" : "詳細を開く";
+});
+$("reset-rules-btn").addEventListener("click", () => {
+  if(!confirm("ルールの優先順位と有効/無効を初期設定に戻しますか?")) return;
+  ruleOrder = DEFAULT_RULE_ORDER.slice();
+  ruleEnabled = {};
+  DEFAULT_RULE_ORDER.forEach(k => ruleEnabled[k] = true);
+  renderRules(); saveState();
+});
 
 /* ============ イベント ============ */
 const clubMode = () => $("club-mode").checked;
@@ -1689,6 +1891,330 @@ function updateClubUi(){
   const on = clubMode();
   document.querySelectorAll(".club-field").forEach(el => el.style.display = on ? "" : "none");
 }
+/* ============ 使い方ページ(別タブ) ============ */
+function helpHtml(){
+  return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>使い方 — 競技かるた 対戦組</title>
+<style>
+:root{--ai:#22335C;--ai-deep:#16223F;--sumi:#2B2B30;--kami:#FAFAF7;--usuzumi:#8A8A93;--line:#E3E2DC;--aka:#B3342E;--tatami:#5E7355;
+--serif:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+--sans:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--kami);color:var(--sumi);line-height:1.75}
+header{background:var(--ai-deep);color:#F4F3EE;padding:26px 20px}
+header h1{font-family:var(--serif);font-size:23px;font-weight:600;letter-spacing:.12em;max-width:780px;margin:0 auto}
+header p{max-width:780px;margin:6px auto 0;font-size:12.5px;color:#B9BFCE}
+main{max-width:780px;margin:0 auto;padding:22px 18px 80px}
+nav.toc{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin-bottom:22px}
+nav.toc h2{font-family:var(--serif);font-size:14px;color:var(--ai);letter-spacing:.08em;margin-bottom:8px}
+nav.toc ol{margin-left:1.2em;font-size:14px}
+nav.toc a{color:var(--ai);text-decoration:none}
+nav.toc a:hover{text-decoration:underline}
+section{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+h2.sec{font-family:var(--serif);font-size:18px;color:var(--ai);letter-spacing:.08em;padding-bottom:8px;border-bottom:2px solid var(--ai);margin-bottom:14px}
+h3{font-size:15px;color:var(--ai);margin:16px 0 6px}
+h3:first-of-type{margin-top:0}
+p,li{font-size:14.5px}
+ul,ol{margin:6px 0 6px 1.3em}
+li{margin:3px 0}
+code,.code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#F2F2ED;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:13px}
+pre{background:#F7F7F3;border:1px solid var(--line);border-left:3px solid var(--ai);border-radius:0 6px 6px 0;padding:10px 14px;margin:8px 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;overflow-x:auto;line-height:1.6}
+.note{background:#F4F5F8;border-left:3px solid var(--ai);border-radius:0 6px 6px 0;padding:10px 14px;margin:10px 0;font-size:13.5px}
+.warn{background:#F9E9E8;border-left:3px solid var(--aka);border-radius:0 6px 6px 0;padding:10px 14px;margin:10px 0;font-size:13.5px}
+.ok{background:#EAF0E6;border-left:3px solid var(--tatami);border-radius:0 6px 6px 0;padding:10px 14px;margin:10px 0;font-size:13.5px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:#F4F5F8;color:var(--ai);white-space:nowrap}
+.step{counter-reset:step}
+.step li{margin:8px 0}
+.badge{display:inline-block;font-size:11.5px;font-weight:700;color:#fff;background:var(--ai);border-radius:4px;padding:1px 7px;margin-right:4px}
+.badge.g{background:var(--tatami)}.badge.r{background:var(--aka)}.badge.y{background:#9A7B3F}
+footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:var(--usuzumi)}
+@media(max-width:560px){header h1{font-size:19px}h2.sec{font-size:16px}p,li{font-size:14px}}
+</style></head><body>
+<header>
+  <h1>競技かるた 対戦組 — 使い方</h1>
+  <p>大人数の練習・合同練習・OBOG会で対戦組を自動作成するアプリの説明です</p>
+</header>
+<main>
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li><a href="#s1">まずは3ステップ</a></li>
+    <li><a href="#s2">選手を登録する</a></li>
+    <li><a href="#s3">試合設定(試合数・希望・NG・抜け)</a></li>
+    <li><a href="#s4">組み合わせのルール(優先順位)</a></li>
+    <li><a href="#s4b">級の許容差・ルールの変更</a></li>
+    <li><a href="#s5">試合の途中でメンバーが変わったとき</a></li>
+    <li><a href="#s6">結果の出力(印刷・Excel・LINE)</a></li>
+    <li><a href="#s7">記録の保存と復旧</a></li>
+    <li><a href="#s8">合同練習・OBOG会の設定</a></li>
+    <li><a href="#s9">困ったときは</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2 class="sec">1. まずは3ステップ</h2>
+  <ol class="step">
+    <li><b>選手を登録</b> — 名前と級を入れて「追加」。人数が多いときは「まとめて追加」で一気に。</li>
+    <li><b>試合数を決める</b> — 「設定」で1人あたり何試合やるかを指定。</li>
+    <li><b>「組み合わせを作成」を押す</b> — 同じ級同士を優先し、同じ相手と当たらないように自動で組みます。</li>
+  </ol>
+  <div class="ok">これだけで使えます。対戦希望・NG・抜け番・所属会などは、必要なときだけ設定すればOKです。</div>
+</section>
+
+<section id="s2">
+  <h2 class="sec">2. 選手を登録する</h2>
+  <h3>1人ずつ追加</h3>
+  <p>名前を入れ、級を選んで「追加」。級は強い順に <span class="code">A+ / A / B+ / B / C+ / C / D+ / D / E+ / E</span> の10段階です。</p>
+  <h3>まとめて追加</h3>
+  <p>「まとめて追加」を押すと入力欄が開きます。名前を区切って並べ、級を1回選ぶだけで全員が登録されます。</p>
+  <pre>佐藤 鈴木 田中、高橋,伊藤</pre>
+  <p>区切りは<b>スペース・「、」・「,」・改行</b>のどれでも使えます。級ごとに繰り返すのが簡単です。</p>
+  <h3>Excel・スプレッドシートから貼り付け</h3>
+  <p>「名前・級・属性・会」の列を範囲コピーして貼り付けると、各行の値がそのまま反映されます(空欄の行は欄で選んだ値になります)。「A+級」「a」「B＋」などの表記ゆれも読み取ります。</p>
+  <h3>削除</h3>
+  <p>名前の横の <span class="code">×</span> で削除。その人が対戦希望・NG・抜け指定に含まれている場合だけ確認が出ます。</p>
+</section>
+
+<section id="s3">
+  <h2 class="sec">3. 試合設定</h2>
+  <h3>試合数</h3>
+  <p><span class="code">−</span> <span class="code">＋</span> で増減できます。1人あたりの試合数(回戦数)です。</p>
+
+  <h3>対戦希望(この2人を当てたい)</h3>
+  <p>2人を選んで「希望を追加」。名前を入力すると候補が出るほか、<span class="code">▾</span> で一覧からも選べます。「第◯試合」を選ぶと<b>その試合で取り、それより前の試合では当てません</b>。</p>
+  <p><b>まとめて追加</b>も使えます。1行に2人、違う組み合わせは改行して書きます。試合を指定したいときは、名前のあとにスペースを空けて数字を入れます。</p>
+  <pre>佐藤 鈴木
+田中 高橋 3   ← 第3試合で取る
+伊藤、渡辺</pre>
+
+  <h3>対戦NG(この2人は当てない)</h3>
+  <p>操作は希望と同じです。まとめて追加も、1行に2人・違う組み合わせは改行で書きます(NGに試合指定はありません)。</p>
+
+  <h3>抜ける人の指定</h3>
+  <p>試合ごとに<b>何人でも</b>指定できます。指定した人はその試合に組まれません。残りが奇数になった場合は、<b>抜け回数が均等になるように自動でもう1人</b>が抜け番になります。</p>
+  <p><b>まとめて追加</b>は、行の先頭に試合番号を書き、そのあとに名前を並べます。</p>
+  <pre>1 佐藤 鈴木
+2 田中
+3、高橋,伊藤</pre>
+  <div class="note">一括入力はどれも<b>登録済みの選手名と完全一致</b>したものだけが有効です。一覧にない名前を含む行はスキップされ、理由が表示されます。</div>
+
+  <h3>特定の選手の指定だけを見たいとき</h3>
+  <p>対戦希望・対戦NGの一覧が増えてくると、目的の行を探しにくくなります。一覧の中の<b>選手名をタップ(クリック)すると、その選手を含む組み合わせが上に並び、色が付いて目立つように</b>なります。「〇〇さんのNGって何件あったっけ?」という確認が一瞬で終わります。</p>
+  <ul>
+    <li>もう一度同じ名前を押すか、「解除」を押すと元の順番に戻ります</li>
+    <li>対戦希望と対戦NGは別々に絞り込めます</li>
+  </ul>
+</section>
+
+<section id="s4">
+  <h2 class="sec">4. 組み合わせのルール(優先順位)</h2>
+  <p>次の順で優先して組みます。上ほど強い条件です(この順番は<a href="#s4b">設定で変更</a>できます)。</p>
+  <table>
+    <tr><th>順位</th><th>条件</th><th>内容</th></tr>
+    <tr><td>1</td><td>対戦NG</td><td>指定した2人は当てません(他に組みようがない場合のみ例外)</td></tr>
+    <tr><td>2</td><td>再戦回避</td><td>同じ相手と2回当たらないようにします</td></tr>
+    <tr><td>3</td><td>過去の対戦</td><td>「履歴に保存」した過去の練習で当たった相手も避けます</td></tr>
+    <tr><td>4</td><td>対戦希望</td><td>指定した2人が当たるようにします</td></tr>
+    <tr><td>5</td><td>同じ会を避ける</td><td>「会を入れる」がオンのとき、同じ会同士を避けます</td></tr>
+    <tr><td>6</td><td>属性違い</td><td>OBOG会モードのとき、現役×OBOGを優先します</td></tr>
+    <tr><td>7</td><td>近い級</td><td>同じ級を最優先、無理なら級差の小さい相手を選びます</td></tr>
+  </table>
+  <div class="note">条件が両立しないときは上位が優先されます。たとえば「NGを避けるために同じ会同士で組む」「再戦を避けるために級をまたぐ」といった動きになります。</div>
+  <h3>結果に出るマーク</h3>
+  <ul>
+    <li><span class="badge g">希望対戦</span> 対戦希望で組まれた試合</li>
+    <li><span class="badge y">A+級×B級</span> 違う級同士の試合</li>
+    <li><span class="badge r">再戦 / 過去に対戦あり</span> 避けきれなかった場合の注意</li>
+    <li><span class="badge">現役×OBOG</span> <span class="badge y">同じ会(◯◯)</span> 属性・会の状況</li>
+  </ul>
+</section>
+
+<section id="s4b">
+  <h2 class="sec">5. 級の許容差・ルールの変更</h2>
+  <p>ここは<b>通常は触らなくて大丈夫</b>です。組み方を細かく調整したいときだけ使ってください。</p>
+
+  <h3>級の許容差(何段階までを「同じ級」とみなすか)</h3>
+  <p>設定の「級の許容差」に数字を入れると、<b>その段階までの級差を「同じ級」として扱います</b>。人数が少なく同級だけでは組みにくいときや、少し幅を持たせて当てたいときに便利です。</p>
+  <table>
+    <tr><th>設定値</th><th>同級として扱う範囲</th><th>例</th></tr>
+    <tr><td>0(初期値)</td><td>完全に同じ級のみ</td><td>A+とA は別扱い</td></tr>
+    <tr><td>1</td><td>1段階まで</td><td>A+とA が同級扱い</td></tr>
+    <tr><td>2</td><td>2段階まで</td><td>A+とB+ が同級扱い</td></tr>
+    <tr><td>3</td><td>3段階まで</td><td>A+とB が同級扱い</td></tr>
+  </table>
+  <div class="note">許容差を超える級差については、これまで通り「差が小さいほど優先」で組まれます。たとえば許容差2なら、A+とC+(差4)よりA+とB(差3)が優先されます。</div>
+
+  <h3>組み方のルール(優先順位と有効/無効)</h3>
+  <p>設定の「組み方のルール」→「詳細を開く」で、<b>7つのルールの優先順位</b>と<b>使うかどうか</b>を変えられます。</p>
+  <ul>
+    <li><b>▲▼</b> — 優先順位を入れ替えます。上にあるルールほど強く働きます</li>
+    <li><b>チェックを外す</b> — そのルールを考慮しなくなります</li>
+    <li><b>初期設定に戻す</b> — いつでも既定の並び(<a href="#s4">4章の表</a>の順)に戻せます</li>
+  </ul>
+  <p>たとえば次のような調整ができます。</p>
+  <table>
+    <tr><th>やりたいこと</th><th>設定</th></tr>
+    <tr><td>級が近いことを何より重視したい</td><td>「近い級」を一番上に移動</td></tr>
+    <tr><td>同じ相手と何度当たってもよい</td><td>「再戦回避」のチェックを外す</td></tr>
+    <tr><td>前回の練習の対戦は気にしない</td><td>「過去の対戦」のチェックを外す</td></tr>
+    <tr><td>合同練習で会の違いを級より重視したい</td><td>「同じ会を避ける」を「近い級」より上に</td></tr>
+  </table>
+  <div class="warn">「対戦NG」を下げたり外したりすると、NGに指定した組み合わせが出ることがあります。意図しない場合は初期設定のままにしてください。</div>
+  <p>設定した内容は自動保存され、「ファイルに書き出し」にも含まれます。</p>
+</section>
+
+<section id="s5">
+  <h2 class="sec">6. 試合の途中でメンバーが変わったとき</h2>
+  <p>「3試合目まで終わったところで人が帰った・増えた」という場合、<b>終わった試合はそのまま、続きだけを組み直せます</b>。</p>
+  <ol class="step">
+    <li>終わった試合のカード右上の<b>「ここまで確定」</b>を押す</li>
+    <li>選手登録を変更する(追加・削除)</li>
+    <li><b>「続きを作成」</b>を押す</li>
+  </ol>
+  <p>確定した試合はそのまま残り、続きの試合は<b>確定分と再戦しないように</b>組まれます。</p>
+  <h3>確定を解除したいとき</h3>
+  <ul>
+    <li>確定済みカードの<b>「ここから確定解除」</b> — その試合以降の確定が外れます</li>
+    <li>画面上部のバナー — 「第◯試合までに戻す」か「すべて解除」を選べます</li>
+  </ul>
+</section>
+
+<section id="s6">
+  <h2 class="sec">7. 結果の出力</h2>
+  <ul>
+    <li><b>印刷</b> — 会場に貼り出す用。設定欄は印刷されません</li>
+    <li><b>表をコピー</b> — Googleスプレッドシートに貼り付けるならこれが一番速いです</li>
+    <li><b>Excel形式(.xlsx)</b> — Googleドライブにアップすればそのまま開けます</li>
+    <li><b>CSV</b> — Excel・スプレッドシート用</li>
+    <li><b>テキスト</b> — LINEなどに貼り付けやすい形式</li>
+  </ul>
+  <p>画面には「選手別の対戦一覧」も出るので、「自分は何試合目で誰と当たるか」を各自が確認できます。</p>
+</section>
+
+<section id="s7">
+  <h2 class="sec">8. 記録の保存と復旧</h2>
+  <h3>自動保存</h3>
+  <p>選手・設定・最後に組んだ組み合わせは、使っている端末に自動保存されます。アプリを閉じて開き直しても、そのまま続きから使えます。</p>
+  <h3>過去の対戦を覚えさせる</h3>
+  <p>練習の最後に結果下の<b>「この結果を対戦履歴に保存」</b>を押すと対戦が記録され、次回以降は<b>過去に当たった相手を避けて</b>組めます(「過去の練習の対戦も避けて組む」のチェックで切替)。</p>
+  <div class="warn">保存ボタンは、実際に使う組み合わせが決まってから1日1回だけ押してください。「別の組み合わせで再作成」を何度試しても、押すまで記録は汚れません。</div>
+  <h3>ファイルに書き出し(バックアップ・引き継ぎ)</h3>
+  <p><b>「ファイルに書き出し」</b>で、選手・NG・対戦希望・抜け指定・設定・組んだ対戦をまるごと1つのファイルに保存できます。別の端末への引き継ぎや、ブラウザの記録が消えたときの復旧に使います。</p>
+  <h3>読み込んだときの動き</h3>
+  <p>ファイルを読み込むと、まず<b>選手・NG・対戦希望を反映した「生成前の状態」</b>に戻ります。保存時に対戦を組んでいた場合は、次のように聞かれます。</p>
+  <ul>
+    <li><b>その対戦を呼び出す</b> → さらに「何試合目まで実施済みか」を入力すると、そこまでを確定して<b>続きだけ組み直せます</b></li>
+    <li><b>呼び出さない</b> → 対戦は出さず、準備だけ整った状態で開きます</li>
+  </ul>
+  <p>対戦表の <span class="code">.xlsx</span>・<span class="code">CSV</span>・テキストからも、同じように対戦を呼び出せます。</p>
+  <div class="note">スマホでファイル選択がうまく動かないときは、<b>「貼り付けで読み込み」</b>を使ってください。ファイルの中身をコピーして貼り付けるだけで読み込めます。</div>
+</section>
+
+<section id="s8">
+  <h2 class="sec">9. 合同練習・OBOG会の設定</h2>
+  <h3>会を入れる(合同練習)</h3>
+  <p>選手登録の<b>「会を入れる」</b>をオンにすると、所属会を登録できます。オンのあいだは<b>同じ会同士の対戦を避けて</b>組みます。会名は全日本かるた協会に登録されているかるた会から検索でき、一覧にない会は直接入力もできます。</p>
+  <h3>OBOG会モード</h3>
+  <p>選手に「現役 / OBOG」の属性を付け、設定で<b>OBOG会モード</b>をオンにすると、<b>違う属性×同じ級</b>を最優先で組みます。人数の都合で難しい場合は、級をまたいででも属性違いを優先します。属性を設定しない人は通常通り扱われます。</p>
+  <div class="note">両方オンにした場合は、<b>会違い</b>が<b>属性違い</b>より優先されます。</div>
+</section>
+
+<section id="s9">
+  <h2 class="sec">10. 困ったときは</h2>
+  <table>
+    <tr><th>状況</th><th>対処</th></tr>
+    <tr><td>「再戦」マークが出る</td><td>試合数に対して人数が少ないと、全員と当たり切って再戦が発生します。試合数を減らすか人数を増やしてください。</td></tr>
+    <tr><td>対戦希望が消化されない</td><td>指定した試合に片方が抜け番になっている、試合数を超えた試合を指定している、などが原因です。警告に理由が出ます。</td></tr>
+    <tr><td>NGなのに組まれた</td><td>人数の都合で他に組みようがない状態です。抜け指定を減らすか、人数を調整してください。</td></tr>
+    <tr><td>一括追加でスキップされる</td><td>登録済みの選手名と完全一致していない可能性があります。表示される理由を確認してください。</td></tr>
+    <tr><td>組み合わせが気に入らない</td><td>「別の組み合わせで再作成」を押すと、条件は同じまま別のパターンを作ります。</td></tr>
+    <tr><td>同じ級の相手が見つからない</td><td>「級の許容差」を1〜2に上げると、近い級を同級として扱って組みやすくなります。</td></tr>
+    <tr><td>思った通りに組まれない</td><td>「組み方のルール」で優先順位を変えているかもしれません。「初期設定に戻す」で既定に戻せます。</td></tr>
+    <tr><td>記録が消えた</td><td>「ファイルに書き出し」で保存したファイルがあれば復旧できます。日頃から書き出しておくと安心です。</td></tr>
+  </table>
+</section>
+</main>
+<footer>競技かるた 対戦組 — このページはアプリ内で生成されています。閉じても設定には影響しません。</footer>
+</body></html>`;
+}
+function openHelp(){
+  const w = window.open("", "_blank");
+  if(!w){
+    alert("使い方ページを開けませんでした。ブラウザのポップアップブロックを解除してからもう一度お試しください。");
+    return;
+  }
+  w.document.open();
+  w.document.write(helpHtml());
+  w.document.close();
+}
+
+/* ============ ナビゲーション ============ */
+const NAV_MENUS = {
+  players: [
+    ["選手を登録する", "sec-players"],
+    ["会を入れる(合同練習)", "anc-club"]
+  ],
+  settings: [
+    ["試合数", "anc-rounds"],
+    ["対戦希望", "anc-req"],
+    ["対戦NG", "anc-ng"],
+    ["抜ける人の指定", "bye-section"],
+    ["OBOG会モード", "anc-obog"],
+    ["級の許容差", "anc-tolerance"],
+    ["組み方のルール", "anc-rules"]
+  ],
+  data: [
+    ["対戦履歴とデータ", "sec-data"]
+  ]
+};
+function scrollToAnchor(id){
+  const el = $(id);
+  if(!el) return;
+  const nav = $("quick-nav");
+  const offset = (nav ? nav.offsetHeight : 0) + 10;
+  const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
+  window.scrollTo({top: Math.max(0, y), behavior: "smooth"});
+}
+function closeNavMenus(){
+  document.querySelectorAll(".nav-menu").forEach(m => m.remove());
+  document.querySelectorAll("#quick-nav .nav-btn").forEach(b => b.setAttribute("aria-expanded", "false"));
+}
+function setupNav(){
+  document.querySelectorAll("#quick-nav .nav-item").forEach(item => {
+    const btn = item.querySelector(".nav-btn");
+    const key = item.dataset.nav;
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const wasOpen = btn.getAttribute("aria-expanded") === "true";
+      closeNavMenus();
+      if(wasOpen) return;
+      const menu = document.createElement("div");
+      menu.className = "nav-menu";
+      menu.innerHTML = NAV_MENUS[key].map(([label, id]) =>
+        '<button type="button" data-goto="' + id + '">' + esc(label) + '</button>').join("");
+      item.appendChild(menu);
+      btn.setAttribute("aria-expanded", "true");
+      menu.querySelectorAll("[data-goto]").forEach(b =>
+        b.addEventListener("click", ev => {
+          ev.stopPropagation();
+          const target = b.dataset.goto;
+          closeNavMenus();
+          // 抜ける人・会など、隠れている場合は開いてから移動
+          if(target === "anc-club" && !$("club-mode").checked){
+            // チェックは変えず、位置だけ知らせる
+          }
+          scrollToAnchor(target);
+        }));
+    });
+  });
+  document.addEventListener("click", closeNavMenus);
+  window.addEventListener("scroll", () => { if(document.querySelector(".nav-menu")) closeNavMenus(); }, {passive: true});
+}
+
 function updateGenUi(){
   $("generate-btn").textContent = fixedRounds.length
     ? "続きを作成(第" + (fixedRounds.length + 1) + "試合〜)" : "組み合わせを作成";
@@ -1699,6 +2225,7 @@ function updateGenUi(){
 function renderAll(){
   updateClubUi();
   renderPlayers();
+  renderRules();
   renderReqRoundOptions();
   renderPairList("req-list", requests, false);
   renderPairList("ng-list", ngPairs, true);
@@ -1844,6 +2371,9 @@ function run(){
   renderResults(lastResult);
   saveState();
 }
+setupNav();
+$("nav-result").addEventListener("click", e => { e.preventDefault(); scrollToAnchor("results"); });
+$("help-link").addEventListener("click", e => { e.preventDefault(); openHelp(); });
 loadState();
 renderAll();
 if(lastResult) renderResults(lastResult, true);
