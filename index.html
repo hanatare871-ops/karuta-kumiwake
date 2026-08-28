@@ -2221,6 +2221,21 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
     <tr><td>7</td><td>近い級</td><td>同じ級を最優先、無理なら級差の小さい相手を選びます</td></tr>
   </table>
   <div class="note">条件が両立しないときは上位が優先されます。たとえば「NGを避けるために同じ会同士で組む」「再戦を避けるために級をまたぐ」といった動きになります。</div>
+  <h3>作成前のチェック</h3>
+  <p>「組み合わせを作成」を押したとき、<b>そもそも組めない設定になっていないか</b>を先に点検します。問題があれば作成を中止し、原因と対処法を1件ずつ表示します。大人数の練習会では希望やNGが増えて矛盾しやすいので、ここで気づけるようにしています。</p>
+  <table>
+    <tr><th>検出する内容</th><th>表示される内容の例</th></tr>
+    <tr><td>1人の希望が多すぎる</td><td>「〇〇の対戦希望が5件ありますが、出られる試合は3試合です。2件は必ず組めません」</td></tr>
+    <tr><td>同じ試合に希望が重複</td><td>「〇〇は第2試合に3件の希望があります(△△・□□・◇◇)。1試合で当たれるのは1人だけです」</td></tr>
+    <tr><td>抜け番と希望の矛盾</td><td>「〇〇は第2試合で抜け番ですが、同じ試合に△△との希望があります」</td></tr>
+    <tr><td>NGが多すぎて相手がいない</td><td>「〇〇は第1試合で当たれる相手がいません(出場者20名のうち19名がNG)」</td></tr>
+    <tr><td>希望の総数が多すぎる</td><td>「希望が30件ありますが、3試合で作れる組み合わせは合計27組です」</td></tr>
+    <tr><td>特定の試合に集中</td><td>「第1試合に12件の希望がありますが、この試合で作れるのは10組です」</td></tr>
+    <tr><td>設定の矛盾</td><td>希望とNGに同じペアがある / 試合数を超えた試合を指定している / 抜けが多すぎて試合が成立しない</td></tr>
+  </table>
+  <p>それぞれ<b>「何件減らせばよいか」まで具体的に示す</b>ので、そのまま直せます。</p>
+  <div class="note">作成は止めないものの注意したほうがよい場合(人数に対して試合数が多く再戦が避けられない、1人しかいない級がある、など)は、確認のうえで作成を続けられます。</div>
+
   <h3>組めなかったときは理由が出ます</h3>
   <p>対戦希望が組めなかったり、対戦NGを避けられなかった場合は、結果の上に<b>1件ずつ理由が表示</b>されます。</p>
   <ul>
@@ -2351,6 +2366,7 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
   <table>
     <tr><th>状況</th><th>対処</th></tr>
     <tr><td>「再戦」マークが出る</td><td>試合数に対して人数が少ないと、全員と当たり切って再戦が発生します。試合数を減らすか人数を増やしてください。</td></tr>
+    <tr><td>作成を押しても何も起きない</td><td>設定に矛盾があると作成を中止し、結果欄に原因を表示します。表示された内容に沿って希望・NG・抜けの指定を直してください。</td></tr>
     <tr><td>対戦希望が組めなかった</td><td><b>結果の上に、希望ごとの理由が表示されます</b>(誰が抜け番だったのか、NGと矛盾しているのか、他の組との兼ね合いなのか)。表示された内容に沿って設定を見直してください。</td></tr>
     <tr><td>NGなのに組まれた</td><td>人数の都合で他に組みようがない状態です。こちらも<b>結果の上に理由が表示</b>されるので、何試合目の何人でその状況になったかを確認できます。</td></tr>
     <tr><td>一括追加でスキップされる</td><td>登録済みの選手名と完全一致していない可能性があります。表示される理由を確認してください。</td></tr>
@@ -2621,6 +2637,178 @@ $("rounds-plus").addEventListener("click", () => {
 $("generate-btn").addEventListener("click", run);
 $("regen-btn").addEventListener("click", run);
 $("print-btn").addEventListener("click", () => window.print());
+/* ============ 生成前の事前診断(大人数の練習会向け) ============ */
+// 返り値: {errors:[], warns:[]} — errors があれば生成を止める
+function preflightCheck(){
+  const errors = [], warns = [];
+  const rounds = clampRounds();
+  const newRounds = [];
+  for(let r = fixedRounds.length + 1; r <= rounds; r++) newRounds.push(r);
+  const nameOf = id => (byId(id) || {}).name || "?";
+
+  // --- 各選手が何試合出られるか(抜け指定を反映) ---
+  const playable = {};   // id → 出場できる試合数
+  players.forEach(p => playable[p.id] = 0);
+  newRounds.forEach(r => {
+    const byes = (manualByes[r] || []);
+    players.forEach(p => { if(!byes.includes(p.id)) playable[p.id]++; });
+  });
+
+  // --- 選手ごとの希望・NG件数を集計 ---
+  const reqCount = {}, ngCount = {}, reqRounds = {};
+  players.forEach(p => { reqCount[p.id] = 0; ngCount[p.id] = 0; reqRounds[p.id] = {}; });
+  requests.forEach(q => {
+    [q.aId, q.bId].forEach(id => {
+      if(reqCount[id] === undefined) return;
+      reqCount[id]++;
+      if(q.round){
+        if(!reqRounds[id][q.round]) reqRounds[id][q.round] = [];
+        reqRounds[id][q.round].push(q);
+      }
+    });
+  });
+  ngPairs.forEach(q => { [q.aId, q.bId].forEach(id => { if(ngCount[id] !== undefined) ngCount[id]++; }); });
+
+  // --- (1) 1人の希望件数が出場試合数を超えている ---
+  players.forEach(p => {
+    const need = reqCount[p.id], can = playable[p.id];
+    if(need > can){
+      errors.push("<b>" + esc(p.name) + "</b>の対戦希望が" + need + "件ありますが、出られる試合は" + can + "試合です。" +
+        (can < newRounds.length ? "(抜け指定で" + (newRounds.length - can) + "試合休むため)" : "") +
+        " 1試合で当たれる相手は1人なので、" + (need - can) + "件は必ず組めません。" +
+        "<br>→ 試合数を増やすか、" + esc(p.name) + "の希望を" + (need - can) + "件以上減らしてください。");
+    }
+  });
+
+  // --- (2) 同じ試合に複数の希望を指定している ---
+  players.forEach(p => {
+    Object.keys(reqRounds[p.id]).forEach(r => {
+      const list = reqRounds[p.id][r];
+      if(list.length > 1){
+        const others = list.map(q => nameOf(q.aId === p.id ? q.bId : q.aId));
+        errors.push("<b>" + esc(p.name) + "</b>は第" + r + "試合に" + list.length + "件の希望があります(" +
+          others.map(esc).join("・") + ")。1試合で当たれるのは1人だけです。" +
+          "<br>→ どれか1件を残し、他は別の試合を指定するか「試合指定なし」にしてください。");
+      }
+    });
+  });
+
+  // --- (3) 指定した試合に本人が抜け番 ---
+  requests.forEach(q => {
+    if(!q.round || q.round > rounds) return;
+    const byes = (manualByes[q.round] || []);
+    [q.aId, q.bId].forEach(id => {
+      if(byes.includes(id))
+        errors.push("<b>" + esc(nameOf(id)) + "</b>は第" + q.round + "試合で抜け番に指定されていますが、" +
+          "同じ試合に" + esc(nameOf(q.aId === id ? q.bId : q.aId)) + "との対戦希望があります。" +
+          "<br>→ 抜け指定を外すか、希望の試合を変更してください。");
+    });
+  });
+
+  // --- (4) 希望と NG が同じペア ---
+  requests.forEach(q => {
+    const k = nameKey(String(q.aId), String(q.bId));
+    if(ngPairs.some(n => nameKey(String(n.aId), String(n.bId)) === k))
+      errors.push("<b>" + esc(nameOf(q.aId)) + " × " + esc(nameOf(q.bId)) +
+        "</b>が対戦希望と対戦NGの両方に登録されています。<br>→ どちらか一方を削除してください。");
+  });
+
+  // --- (5) 試合数を超えた試合指定 ---
+  requests.forEach(q => {
+    if(q.round && q.round > rounds)
+      errors.push("<b>" + esc(nameOf(q.aId)) + " × " + esc(nameOf(q.bId)) + "</b>に第" + q.round +
+        "試合が指定されていますが、試合数は" + rounds + "試合です。<br>→ 試合数を増やすか、指定を変えてください。");
+    if(q.round && q.round <= fixedRounds.length)
+      warns.push("<b>" + esc(nameOf(q.aId)) + " × " + esc(nameOf(q.bId)) + "</b>の指定した第" + q.round +
+        "試合は確定済みのため、組み替えられません。");
+  });
+
+  // --- (6) NGが多すぎて相手がいない ---
+  players.forEach(p => {
+    const ngNames = new Set();
+    ngPairs.forEach(q => {
+      if(q.aId === p.id) ngNames.add(q.bId);
+      if(q.bId === p.id) ngNames.add(q.aId);
+    });
+    if(!ngNames.size) return;
+    // その人が出る試合ごとに、当たれる相手が残っているか
+    newRounds.forEach(r => {
+      const byes = (manualByes[r] || []);
+      if(byes.includes(p.id)) return;
+      const available = players.filter(o => o.id !== p.id && !byes.includes(o.id) && !ngNames.has(o.id));
+      if(!available.length)
+        errors.push("<b>" + esc(p.name) + "</b>は第" + r + "試合で当たれる相手がいません" +
+          "(出場者" + (players.length - byes.length) + "名のうち" + ngNames.size + "名がNG)。" +
+          "<br>→ NGを減らすか、この試合は" + esc(p.name) + "を抜け番にしてください。");
+    });
+  });
+
+  // --- (7) 全体: 希望総数が組める上限を超えている ---
+  const totalSlots = newRounds.reduce((s, r) => {
+    const n = players.length - (manualByes[r] || []).length;
+    return s + Math.floor(n / 2);
+  }, 0);
+  const pendingReq = requests.filter(q => !q.round || q.round > fixedRounds.length).length;
+  if(pendingReq > totalSlots)
+    errors.push("対戦希望が" + pendingReq + "件ありますが、これから組む" + newRounds.length +
+      "試合で作れる組み合わせは合計" + totalSlots + "組です。<br>→ 試合数を増やすか、希望を" +
+      (pendingReq - totalSlots) + "件以上減らしてください。");
+
+  // --- (8) 抜け指定で試合が成立しない ---
+  newRounds.forEach(r => {
+    const byes = (manualByes[r] || []).filter(id => byId(id));
+    const remain = players.length - byes.length;
+    if(remain < 2)
+      errors.push("第" + r + "試合は抜ける人が多すぎて対戦が組めません(残り" + remain + "名)。" +
+        "<br>→ 抜け指定を減らしてください。");
+  });
+
+  // --- (9) 警告: 再戦が避けられない見込み ---
+  const evenN = players.length % 2 === 0 ? players.length : players.length - 1;
+  if(rounds > evenN - 1 + (players.length % 2))
+    warns.push("試合数(" + rounds + ")が人数に対して多いため、同じ相手との再戦が発生します" +
+      "(" + players.length + "名では最大" + (evenN - 1 + (players.length % 2)) + "試合まで再戦なしで組めます)。");
+
+  // --- (10) 警告: 希望が特定の試合に集中 ---
+  const perRound = {};
+  requests.forEach(q => { if(q.round) perRound[q.round] = (perRound[q.round] || 0) + 1; });
+  Object.keys(perRound).forEach(r => {
+    if(r > fixedRounds.length && r <= rounds){
+      const cap = Math.floor((players.length - (manualByes[r] || []).length) / 2);
+      if(perRound[r] > cap)
+        errors.push("第" + r + "試合に" + perRound[r] + "件の希望が指定されていますが、" +
+          "この試合で作れる組み合わせは" + cap + "組です。<br>→ 一部の希望を別の試合に振り分けてください。");
+    }
+  });
+
+  // --- (11) 警告: 級の偏り ---
+  if(ruleOn("rank") && rankTolerance === 0){
+    const byRank = {};
+    players.forEach(p => byRank[p.rank] = (byRank[p.rank] || 0) + 1);
+    const odd = Object.keys(byRank).filter(r => byRank[r] === 1);
+    if(odd.length >= 2)
+      warns.push("1人しかいない級が" + odd.length + "つあります(" + odd.join("・") +
+        ")。同級で組めないため級をまたぎます。「級の許容差」を1〜2に上げると自然に組めます。");
+  }
+  return {errors, warns};
+}
+function showPreflight(res){
+  const wrap = $("results");
+  let html = "";
+  if(res.errors.length){
+    html += '<div class="warn-banner"><b>この設定では組み合わせを作れません(' + res.errors.length + '件)</b>' +
+      '<ul class="reason-list">' + res.errors.map(e => '<li>' + e + '</li>').join("") + '</ul></div>';
+  }
+  if(res.warns.length){
+    html += '<div class="warn-banner" style="background:#FDF6E9;border-color:#E0D3B4;color:#7D6330">' +
+      '<b>注意(このまま作成できます)</b><ul class="reason-list">' +
+      res.warns.map(e => '<li>' + e + '</li>').join("") + '</ul></div>';
+  }
+  wrap.innerHTML = html;
+  $("nav-result").style.display = html ? "" : "none";
+  if(html) wrap.scrollIntoView({behavior: "smooth", block: "start"});
+}
+
 function run(){
   if(players.length < 2){ alert("選手を2名以上登録してください。"); return; }
   const rounds = clampRounds();
@@ -2628,16 +2816,17 @@ function run(){
     alert("試合数(" + rounds + ")が確定済みの回戦数(" + fixedRounds.length + ")以下です。試合数を増やすか、確定を解除してください。");
     return;
   }
-  for(let r = fixedRounds.length + 1; r <= rounds; r++){
-    const remain = players.length - (manualByes[r] || []).filter(id => byId(id)).length;
-    if(remain < 2){
-      alert("第" + r + "試合は抜ける人が多すぎて対戦が組めません(残り" + remain + "名)。抜け指定を減らしてください。");
-      return;
-    }
+  const pre = preflightCheck();
+  if(pre.errors.length){
+    showPreflight(pre);
+    alert("この設定では組み合わせを作れません。\n画面に原因を" + pre.errors.length + "件表示したので、確認してください。");
+    return;
   }
-  const evenN = players.length % 2 === 0 ? players.length : players.length - 1;
-  if(rounds > evenN - 1 + (players.length % 2)){
-    if(!confirm("試合数が多いため、再戦が発生する可能性があります。続けますか?")) return;
+  if(pre.warns.length){
+    const msg = "次の点にご注意ください。\n\n" +
+      pre.warns.map((t, i) => (i + 1) + ". " + t.replace(/<[^>]+>/g, "")).join("\n\n") +
+      "\n\nこのまま組み合わせを作成しますか?";
+    if(!confirm(msg)){ showPreflight(pre); return; }
   }
   lastResult = generateSchedule();
   renderResults(lastResult);
