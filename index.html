@@ -383,6 +383,18 @@ button:disabled{opacity:.6;cursor:default}
       </label>
       <span class="hint" id="history-count" style="margin-top:0">記録済み 0件</span>
     </div>
+    <div class="hint" id="history-scope">履歴は<b>この端末のこのブラウザだけ</b>に保存されます(他の端末とは共有されません)。記録されるのは「誰と誰が何回当たったか」と「誰が何回抜けたか」だけで、日付や試合番号は残りません。</div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost small" id="show-history-btn">履歴を見る・個別に消す</button>
+    </div>
+    <div id="history-area" style="display:none;margin-top:8px">
+      <div class="row">
+        <span class="picker" id="history-filter"></span>
+        <button class="ghost small" type="button" id="history-filter-clear">絞り込み解除</button>
+      </div>
+      <div class="hint">選手を選ぶと、その人の対戦履歴だけを表示します。行の「消す」でその対戦の記録だけを削除できます。</div>
+      <div id="history-list" style="margin-top:8px"></div>
+    </div>
     <div class="row" style="margin-top:12px">
       <button class="ghost small" id="export-btn">ファイルに書き出し</button>
       <button class="ghost small" id="import-btn">ファイルから読み込み</button>
@@ -522,6 +534,68 @@ function loadState(){
 }
 function historyPairCount(){
   return Object.values(history.pairs).reduce((s, v) => s + v, 0);
+}
+let historyFilterName = null;   // 履歴一覧で絞り込み中の選手名
+function renderHistoryList(){
+  const wrap = $("history-list");
+  if(!wrap) return;
+  const entries = Object.keys(history.pairs)
+    .map(k => {
+      const [a, b] = k.split("|");
+      return {key: k, a, b, n: history.pairs[k]};
+    })
+    .filter(e => e.n > 0)
+    .filter(e => !historyFilterName || e.a === historyFilterName || e.b === historyFilterName)
+    .sort((x, y) => y.n - x.n || x.a.localeCompare(y.a, "ja"));
+  if(!entries.length){
+    wrap.innerHTML = '<div class="empty-note">' +
+      (historyFilterName ? esc(historyFilterName) + "の対戦履歴はありません。" : "対戦履歴はまだありません。") + '</div>' +
+      (historyFilterName && history.byes[historyFilterName]
+        ? '<div class="row" style="margin-top:8px"><button class="danger-ghost small" type="button" id="del-player-history">' +
+          esc(historyFilterName) + 'の抜け番記録(' + history.byes[historyFilterName] + '回)を消す</button></div>'
+        : '');
+    if(historyFilterName && $("del-player-history"))
+      $("del-player-history").addEventListener("click", () => deletePlayerHistory(historyFilterName));
+    return;
+  }
+  wrap.innerHTML = '<div class="hint" style="margin-top:0">' + entries.length + '件' +
+    (historyFilterName ? '(' + esc(historyFilterName) + 'の分)' : '') + '</div>' +
+    entries.map(e =>
+      '<div class="req-item"><span>' + esc(e.a) + ' <span class="vs">対</span> ' + esc(e.b) + '</span>' +
+      '<span class="muted" style="font-size:12.5px">' + e.n + '回</span>' +
+      '<button class="x small danger-ghost" style="margin-left:auto" data-hdel="' + esc(e.key) + '">消す</button></div>'
+    ).join("") +
+    (historyFilterName
+      ? '<div class="row" style="margin-top:8px"><button class="danger-ghost small" type="button" id="del-player-history">' +
+        esc(historyFilterName) + 'の履歴をまとめて消す</button></div>'
+      : '');
+  if(historyFilterName && $("del-player-history"))
+    $("del-player-history").addEventListener("click", () => deletePlayerHistory(historyFilterName));
+  wrap.querySelectorAll("[data-hdel]").forEach(b =>
+    b.addEventListener("click", () => {
+      const k = b.dataset.hdel;
+      const [n1, n2] = k.split("|");
+      if(!confirm(n1 + " 対 " + n2 + " の対戦記録(" + history.pairs[k] + "回)を消しますか?")) return;
+      delete history.pairs[k];
+      saveState();
+      renderHistoryCount();
+      renderHistoryList();
+    }));
+}
+// 特定の選手に関する履歴をすべて削除
+function deletePlayerHistory(name){
+  const keys = Object.keys(history.pairs).filter(k => {
+    const [a, b] = k.split("|");
+    return a === name || b === name;
+  });
+  const n = keys.reduce((s, k) => s + history.pairs[k], 0);
+  if(!keys.length && !history.byes[name]){ alert(esc(name) + "の履歴はありません。"); return; }
+  if(!confirm(name + "に関する履歴をすべて消しますか?\n対戦記録" + keys.length + "組(" + n + "回)と抜け番回数が消えます。")) return;
+  keys.forEach(k => delete history.pairs[k]);
+  delete history.byes[name];
+  saveState();
+  renderHistoryCount();
+  renderHistoryList();
 }
 function renderHistoryCount(){
   $("history-count").textContent = "記録済み " + historyPairCount() + "件" + (storageOk ? "" : "(この環境では自動保存不可)");
@@ -1956,12 +2030,27 @@ $("paste-import-run").addEventListener("click", () => {
   if(!t.trim()){ alert("先に書き出したファイルの中身を貼り付けてください。"); return; }
   if(importFromText(t)) $("paste-import-input").value = "";
 });
+$("show-history-btn").addEventListener("click", () => {
+  const a = $("history-area");
+  const open = a.style.display === "none";
+  a.style.display = open ? "" : "none";
+  $("show-history-btn").textContent = open ? "履歴を閉じる" : "履歴を見る・個別に消す";
+  if(open) renderHistoryList();
+});
+$("history-filter-clear").addEventListener("click", () => {
+  historyFilterName = null;
+  if(clubPickers["history-filter-picker"]) clubPickers["history-filter-picker"].clear();
+  renderHistoryList();
+});
 $("clear-history-btn").addEventListener("click", () => {
   if(!historyPairCount() && !Object.keys(history.byes).length){ alert("履歴はまだありません。"); return; }
   if(confirm("対戦履歴(" + historyPairCount() + "件)をすべて消去しますか?メンバー登録は残ります。")){
     history = {pairs: {}, byes: {}};
+    historyFilterName = null;
+    if(clubPickers["history-filter-picker"]) clubPickers["history-filter-picker"].clear();
     saveState();
     renderHistoryCount();
+    renderHistoryList();
   }
 });
 $("use-history").addEventListener("change", saveState);
@@ -2218,6 +2307,24 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
   <h3>過去の対戦を覚えさせる</h3>
   <p>練習の最後に結果下の<b>「この結果を対戦履歴に保存」</b>を押すと対戦が記録され、次回以降は<b>過去に当たった相手を避けて</b>組めます(「過去の練習の対戦も避けて組む」のチェックで切替)。</p>
   <div class="warn">保存ボタンは、実際に使う組み合わせが決まってから1日1回だけ押してください。「別の組み合わせで再作成」を何度試しても、押すまで記録は汚れません。</div>
+
+  <h3>履歴に残るもの・残らないもの</h3>
+  <table>
+    <tr><th>残るもの</th><td>誰と誰が何回当たったか / 誰が何回抜け番になったか</td></tr>
+    <tr><td colspan="2" style="border:none;padding:0"></td></tr>
+    <tr><th>残らないもの</th><td>日付・試合番号・級や会などの情報</td></tr>
+  </table>
+  <p>件数の上限や自動削除はありません。保存し続ける限り溜まっていきます。</p>
+  <div class="warn"><b>履歴は使っている端末のブラウザだけに保存されます。</b>他の端末とは共有されません(同じURLでも、スマホとPCでは別々の履歴になります)。共有したいときは「ファイルに書き出し」で保存し、相手の端末で読み込んでください。ブラウザの閲覧データを消すと履歴も消えます。</div>
+
+  <h3>履歴を確認する・消す</h3>
+  <p>「記録」欄の<b>「履歴を見る・個別に消す」</b>で中身を確認できます。</p>
+  <ul>
+    <li><b>1件ずつ消す</b> — 各行の「消す」でその対戦の記録だけを削除</li>
+    <li><b>選手ごとに消す</b> — 上の欄で選手を選んで絞り込み、「〇〇の履歴をまとめて消す」</li>
+    <li><b>全部消す</b> — 「履歴を全消去」(メンバー登録は残ります)</li>
+  </ul>
+  <p>登録から削除した選手の履歴も残っているので、絞り込みから探して消せます。</p>
   <h3>ファイルに書き出し(バックアップ・引き継ぎ)</h3>
   <p><b>「ファイルに書き出し」</b>で、選手・NG・対戦希望・抜け指定・設定・組んだ対戦をまるごと1つのファイルに保存できます。別の端末への引き継ぎや、ブラウザの記録が消えたときの復旧に使います。</p>
   <h3>読み込んだときの動き</h3>
@@ -2250,6 +2357,8 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
     <tr><td>組み合わせが気に入らない</td><td>「別の組み合わせで再作成」を押すと、条件は同じまま別のパターンを作ります。</td></tr>
     <tr><td>同じ級の相手が見つからない</td><td>「級の許容差」を1〜2に上げると、近い級を同級として扱って組みやすくなります。</td></tr>
     <tr><td>思った通りに組まれない</td><td>「組み方のルール」で優先順位を変えているかもしれません。「初期設定に戻す」で既定に戻せます。</td></tr>
+    <tr><td>特定の人とばかり当たらない</td><td>過去の履歴が効いています。「履歴を見る・個別に消す」でその対戦の記録を消すか、「過去の練習の対戦も避けて組む」のチェックを外してください。</td></tr>
+    <tr><td>他の端末で履歴が引き継がれない</td><td>履歴は端末ごとに保存されるためです。「ファイルに書き出し」→相手の端末で読み込むと引き継げます。</td></tr>
     <tr><td>記録が消えた</td><td>「ファイルに書き出し」で保存したファイルがあれば復旧できます。日頃から書き出しておくと安心です。</td></tr>
   </table>
 </section>
@@ -2348,12 +2457,59 @@ function renderAll(){
   renderByeConfig();
   renderFixedBanner();
   renderHistoryCount();
+  if($("history-area") && $("history-area").style.display !== "none") renderHistoryList();
   updateGenUi();
   saveState();
 }
 $("rank-input").innerHTML = rankOptions();
 $("bulk-rank").innerHTML = rankOptions();
 ["club-input","bulk-club"].forEach(id => { clubPickers[id] = buildClubPicker($(id)); });
+// 履歴の絞り込み用ピッカー(履歴に登場する名前から選ぶ。退会した選手の名前も対象)
+(function(){
+  const slot = $("history-filter");
+  if(!slot) return;
+  slot.innerHTML =
+    '<input type="text" class="picker-input" placeholder="選手名で絞り込み / ▾" autocomplete="off">' +
+    '<button type="button" class="picker-toggle" aria-label="一覧から選ぶ">▾</button>' +
+    '<div class="picker-list" style="display:none"></div>';
+  const input = slot.querySelector("input");
+  const toggle = slot.querySelector(".picker-toggle");
+  const list = slot.querySelector(".picker-list");
+  function names(){
+    const s = new Set();
+    Object.keys(history.pairs).forEach(k => k.split("|").forEach(n => s.add(n)));
+    Object.keys(history.byes).forEach(n => s.add(n));
+    return [...s].sort((a, b) => a.localeCompare(b, "ja"));
+  }
+  function render(q){
+    q = (q || "").trim();
+    const hits = names().filter(n => !q || n.includes(q));
+    list.innerHTML = hits.length
+      ? hits.map(n => '<button type="button" class="picker-item" data-v="' + esc(n) + '">' + esc(n) + '</button>').join("")
+      : '<div class="picker-empty">履歴に該当する選手がいません</div>';
+    list.querySelectorAll(".picker-item").forEach(b =>
+      b.addEventListener("mousedown", e => {
+        e.preventDefault();
+        input.value = b.dataset.v;
+        historyFilterName = b.dataset.v;
+        list.style.display = "none";
+        renderHistoryList();
+      }));
+  }
+  const show = q => { render(q); list.style.display = ""; };
+  input.addEventListener("focus", () => show(input.value));
+  input.addEventListener("input", () => {
+    historyFilterName = names().includes(input.value.trim()) ? input.value.trim() : null;
+    show(input.value);
+    renderHistoryList();
+  });
+  toggle.addEventListener("mousedown", e => {
+    e.preventDefault();
+    if(list.style.display === "none"){ input.focus(); show(""); } else list.style.display = "none";
+  });
+  input.addEventListener("blur", () => setTimeout(() => list.style.display = "none", 150));
+  clubPickers["history-filter-picker"] = {clear(){ input.value = ""; }};
+})();
 $("club-mode").addEventListener("change", () => { updateClubUi(); renderAll(); });
 $("add-player-btn").addEventListener("click", () => {
   const club = clubMode() ? clubPickers["club-input"].getValue() : "";
