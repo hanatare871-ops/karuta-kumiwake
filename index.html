@@ -171,7 +171,10 @@ button:disabled{opacity:.6;cursor:default}
 .summary-table th{color:var(--ai);font-size:12.5px;letter-spacing:.05em;white-space:nowrap}
 .summary-table td.opps{color:#4A4A52}
 .empty-note{color:var(--usuzumi);font-size:13.5px;padding:6px 2px}
-.warn-banner{background:#F9E9E8;border:1px solid #E7BEBB;color:var(--aka);border-radius:7px;padding:9px 13px;font-size:13.5px;margin-bottom:12px}
+.warn-banner{background:#F9E9E8;border:1px solid #E7BEBB;color:var(--aka);border-radius:7px;padding:10px 14px;font-size:13.5px;margin-bottom:12px}
+.reason-list{margin:7px 0 0 1.1em;padding:0}
+.reason-list li{margin:7px 0;line-height:1.6}
+.reason-list .reason{color:#6B4A47;font-size:12.5px}
 .ok-banner{background:#EAF0E6;border:1px solid #C9D6C1;color:#3E5236;border-radius:7px;padding:9px 13px;font-size:13.5px;margin-bottom:12px}
 
 @media (max-width:560px){
@@ -1195,6 +1198,104 @@ function generateSchedule(){
   return {schedule, pendingReqs, ngSet};
 }
 
+/* ============ 未消化の原因診断 ============ */
+// 指定した名前集合で、metPairs(既出ペア)を避けて全員がペアを組めるか判定
+function canPerfectMatch(names, metPairs, mustPair){
+  let rest = names.slice();
+  if(mustPair){
+    if(!rest.includes(mustPair[0]) || !rest.includes(mustPair[1])) return false;
+    if(metPairs.has(nameKey(mustPair[0], mustPair[1]))) return false;
+    rest = rest.filter(n => n !== mustPair[0] && n !== mustPair[1]);
+  }
+  if(rest.length % 2 === 1) return false;
+  const memo = new Set();
+  function rec(arr){
+    if(!arr.length) return true;
+    const k = arr.join("|");
+    if(memo.has(k)) return false;
+    const a = arr[0];
+    for(let i = 1; i < arr.length; i++){
+      if(metPairs.has(nameKey(a, arr[i]))) continue;
+      if(rec(arr.filter((_, x) => x !== 0 && x !== i))) return true;
+    }
+    memo.add(k);
+    return false;
+  }
+  return rec(rest);
+}
+// 未消化の対戦希望1件について、なぜ組めなかったかを説明する
+function diagnoseRequest(q, result){
+  const a = q.aName, b = q.bName;
+  const total = result.schedule.length;
+  // 1) 試合数を超えた指定
+  if(q.tRound && q.tRound > total)
+    return "第" + q.tRound + "試合を指定していますが、試合数は" + total + "試合です。試合数を増やしてください。";
+  // 2) NGにも入っている
+  if(result.ngSet.has(nameKey(a, b)))
+    return "この2人は対戦NGにも登録されています。どちらかを削除してください。";
+  // 3) 確定済みの試合を指定している
+  if(q.tRound && q.tRound <= fixedRounds.length)
+    return "第" + q.tRound + "試合は確定済みのため組み替えられません。確定を解除するか、別の試合を指定してください。";
+  // 対象となる試合(指定があればその試合のみ、なければ未確定の全試合)
+  const targets = result.schedule.filter(rd =>
+    q.tRound ? rd.round === q.tRound : !rd.fixed);
+  if(!targets.length)
+    return "組み替えられる試合がありません(すべて確定済みです)。確定を解除してください。";
+  // 4) 抜け番で不在
+  const absent = [];
+  targets.forEach(rd => {
+    const byes = (rd.byes || []).map(x => x.name);
+    if(byes.includes(a) || byes.includes(b)){
+      const who = [byes.includes(a) ? a : null, byes.includes(b) ? b : null].filter(Boolean);
+      absent.push({round: rd.round, who});
+    }
+  });
+  if(absent.length === targets.length){
+    const whoAll = [...new Set(absent.flatMap(x => x.who))];
+    return whoAll.join("・") + "が対象の試合で抜け番になっています(第" +
+      absent.map(x => x.round).join("・") + "試合)。抜けの指定を見直してください。";
+  }
+  // 5) すでに対戦済み(確定分や過去の履歴)
+  const inFixed = result.schedule.some(rd => rd.fixed &&
+    rd.pairs.some(([x, y]) => nameKey(x.name, y.name) === nameKey(a, b)));
+  if(inFixed && q.tRound)
+    return "この2人は確定済みの試合ですでに対戦しています。別の試合を指定するか、指定を外してください。";
+  // 6) 他の組との兼ね合いを判定: 各対象試合で「この2人を組んだ完全マッチング」が可能か
+  const playable = targets.filter(rd => !((rd.byes || []).map(x => x.name).includes(a) ||
+                                          (rd.byes || []).map(x => x.name).includes(b)));
+  const met = new Set();
+  result.schedule.forEach(rd => rd.pairs.forEach(([x, y]) => met.add(nameKey(x.name, y.name))));
+  let feasibleRound = null;
+  for(const rd of playable){
+    const names = rd.pairs.flatMap(([x, y]) => [x.name, y.name]);
+    // この試合の出場者で、すでに組まれた対戦(この試合以外)を避けつつ2人を組めるか
+    const others = new Set();
+    result.schedule.forEach(other => {
+      if(other.round === rd.round) return;
+      other.pairs.forEach(([x, y]) => others.add(nameKey(x.name, y.name)));
+    });
+    if(names.length <= 14 && canPerfectMatch(names, others, [a, b])){ feasibleRound = rd.round; break; }
+  }
+  if(feasibleRound)
+    return "他の組との兼ね合いです。第" + feasibleRound + "試合で組める可能性があるので、「別の組み合わせで再作成」を押すと成立するかもしれません。";
+  if(absent.length)
+    return "他の組との兼ね合いです(第" + absent.map(x => x.round).join("・") +
+      "試合は抜け番のため対象外)。試合数を増やすか、抜けや他の希望・NGを減らすと組めることがあります。";
+  return "他の組との兼ね合いです。この2人を組むと、残りの人で再戦なしの組み合わせが作れません。試合数を増やすか、他の希望・NGを減らしてみてください。";
+}
+// NG違反1件について理由を説明する
+function diagnoseNgViolation(a, b, result){
+  const roundsWith = result.schedule.filter(rd =>
+    rd.pairs.some(([x, y]) => nameKey(x.name, y.name) === nameKey(a, b)));
+  const rd = roundsWith[0];
+  if(!rd) return "";
+  if(rd.fixed) return "第" + rd.round + "試合は確定済みです(確定前に組まれたものです)。";
+  const n = rd.pairs.length * 2;
+  const byeN = (rd.byes || []).length;
+  return "第" + rd.round + "試合で、" + n + "人(抜け" + byeN +
+    "人)を再戦なしで組むには他に方法がありませんでした。人数を増やすか、抜けや他のNGを減らしてください。";
+}
+
 /* ============ 結果表示 ============ */
 function renderResults(result, skipScroll){
   const wrap = $("results");
@@ -1202,22 +1303,29 @@ function renderResults(result, skipScroll){
   const seen = {};
   const unfulfilled = result.pendingReqs.filter(q => !q.done);
   const ngViolations = [];
+  const ngSeen = new Set();
   result.schedule.forEach(rd => rd.pairs.forEach(([a, b]) => {
-    if(result.ngSet.has(nameKey(a.name, b.name))) ngViolations.push(a.name + "×" + b.name);
+    const k = nameKey(a.name, b.name);
+    if(result.ngSet.has(k) && !ngSeen.has(k)){
+      ngSeen.add(k);
+      ngViolations.push({a: a.name, b: b.name});
+    }
   }));
 
   let banner = "";
   if(ngViolations.length){
-    banner += '<div class="warn-banner">対戦NGの組み合わせが避けられませんでした:' +
-      ngViolations.map(esc).join("、") + '(人数や試合数の関係で他に組みようがない状態です)</div>';
+    banner += '<div class="warn-banner"><b>対戦NGを避けられませんでした</b><ul class="reason-list">' +
+      ngViolations.map(v => '<li><b>' + esc(v.a) + ' × ' + esc(v.b) + '</b><br><span class="reason">' +
+        esc(diagnoseNgViolation(v.a, v.b, result)) + '</span></li>').join("") +
+      '</ul></div>';
   }
   if(requests.length){
     if(unfulfilled.length){
-      const over = unfulfilled.filter(q => q.tRound && q.tRound > result.schedule.length);
-      banner += '<div class="warn-banner">消化できなかった対戦希望:' +
-        unfulfilled.map(q => esc(q.aName) + '×' + esc(q.bName) + (q.tRound ? '(第' + q.tRound + '試合指定)' : '')).join("、") +
-        (over.length ? '。指定した試合が試合数を超えている希望があります。' : '') +
-        '(試合数・抜け番・NGの指定を見直してください)</div>';
+      banner += '<div class="warn-banner"><b>組めなかった対戦希望(' + unfulfilled.length + '件)</b><ul class="reason-list">' +
+        unfulfilled.map(q => '<li><b>' + esc(q.aName) + ' × ' + esc(q.bName) + '</b>' +
+          (q.tRound ? '(第' + q.tRound + '試合指定)' : '') +
+          '<br><span class="reason">' + esc(diagnoseRequest(q, result)) + '</span></li>').join("") +
+        '</ul></div>';
     }else{
       banner += '<div class="ok-banner">対戦希望はすべて組み込みました(' + result.pendingReqs.length + '件)。</div>';
     }
@@ -2024,6 +2132,14 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
     <tr><td>7</td><td>近い級</td><td>同じ級を最優先、無理なら級差の小さい相手を選びます</td></tr>
   </table>
   <div class="note">条件が両立しないときは上位が優先されます。たとえば「NGを避けるために同じ会同士で組む」「再戦を避けるために級をまたぐ」といった動きになります。</div>
+  <h3>組めなかったときは理由が出ます</h3>
+  <p>対戦希望が組めなかったり、対戦NGを避けられなかった場合は、結果の上に<b>1件ずつ理由が表示</b>されます。</p>
+  <ul>
+    <li><b>誰が原因か</b> — 「〇〇が第2試合で抜け番になっています」のように当事者を名指しします</li>
+    <li><b>設定の矛盾</b> — 「この2人は対戦NGにも登録されています」「試合数は3試合です」など</li>
+    <li><b>他の組との兼ね合い</b> — 特定の誰かのせいではなく、その2人を組むと残りの人で再戦なしの組み合わせが作れない場合。「別の組み合わせで再作成」で成立することもあります</li>
+  </ul>
+
   <h3>結果に出るマーク</h3>
   <ul>
     <li><span class="badge g">希望対戦</span> 対戦希望で組まれた試合</li>
@@ -2128,8 +2244,8 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
   <table>
     <tr><th>状況</th><th>対処</th></tr>
     <tr><td>「再戦」マークが出る</td><td>試合数に対して人数が少ないと、全員と当たり切って再戦が発生します。試合数を減らすか人数を増やしてください。</td></tr>
-    <tr><td>対戦希望が消化されない</td><td>指定した試合に片方が抜け番になっている、試合数を超えた試合を指定している、などが原因です。警告に理由が出ます。</td></tr>
-    <tr><td>NGなのに組まれた</td><td>人数の都合で他に組みようがない状態です。抜け指定を減らすか、人数を調整してください。</td></tr>
+    <tr><td>対戦希望が組めなかった</td><td><b>結果の上に、希望ごとの理由が表示されます</b>(誰が抜け番だったのか、NGと矛盾しているのか、他の組との兼ね合いなのか)。表示された内容に沿って設定を見直してください。</td></tr>
+    <tr><td>NGなのに組まれた</td><td>人数の都合で他に組みようがない状態です。こちらも<b>結果の上に理由が表示</b>されるので、何試合目の何人でその状況になったかを確認できます。</td></tr>
     <tr><td>一括追加でスキップされる</td><td>登録済みの選手名と完全一致していない可能性があります。表示される理由を確認してください。</td></tr>
     <tr><td>組み合わせが気に入らない</td><td>「別の組み合わせで再作成」を押すと、条件は同じまま別のパターンを作ります。</td></tr>
     <tr><td>同じ級の相手が見つからない</td><td>「級の許容差」を1〜2に上げると、近い級を同級として扱って組みやすくなります。</td></tr>
