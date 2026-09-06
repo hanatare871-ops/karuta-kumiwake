@@ -226,7 +226,7 @@ button:disabled{opacity:.6;cursor:default}
 <section id="sec-players">
   <div class="sec-head"><span class="sec-tag">選手</span><h2>選手登録</h2></div>
   <div class="sec-body">
-    <div class="usage"><b>使い方</b>:名前と級を選んで「追加」。複数人まとめて入れるなら「まとめて追加」で名前を並べて書き、級を1回選ぶだけ。属性(現役/OBOG)はOBOG会モード用、所属会は「会を入れる」をオンにしたときだけ使います(どちらも普段は不要)。<b>名前をタップすると級・属性・会を後から変更できます</b>(対戦希望・NG・抜けの指定はそのまま残ります)。名前の×で削除できます。</div>
+    <div class="usage"><b>使い方</b>:名前と級を選んで「追加」。複数人まとめて入れるなら「まとめて追加」で名前を並べて書き、級を1回選ぶだけ。属性(現役/OBOG)はOBOG会モード用、所属会は「会を入れる」をオンにしたときだけ使います(どちらも普段は不要)。<b>名前をタップすると名前・級・属性・会を後から変更できます</b>(対戦希望・NG・抜けの指定や過去の履歴もそのまま引き継がれます)。名前の×で削除できます。</div>
     <div class="row" id="anc-club" style="margin-bottom:10px">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ai);cursor:pointer">
         <input type="checkbox" id="club-mode" style="width:17px;height:17px">
@@ -635,6 +635,55 @@ function removePlayer(id){
   renderAll();
 }
 let editingPlayerId = null;   // 編集パネルを開いている選手
+// 選手の改名: 履歴・確定済み回戦・表示中の結果まで名前を追従させる
+function renamePlayer(p, newName){
+  const oldName = p.name;
+  // 1) 履歴の対戦記録(キーが "名前|名前")
+  const newPairs = {};
+  Object.keys(history.pairs).forEach(k => {
+    const [a, b] = k.split("|");
+    const na = a === oldName ? newName : a;
+    const nb = b === oldName ? newName : b;
+    const nk = nameKey(na, nb);
+    newPairs[nk] = (newPairs[nk] || 0) + history.pairs[k];
+  });
+  history.pairs = newPairs;
+  // 2) 履歴の抜け番回数
+  if(history.byes[oldName] !== undefined){
+    history.byes[newName] = (history.byes[newName] || 0) + history.byes[oldName];
+    delete history.byes[oldName];
+  }
+  // 3) 確定済み回戦のスナップショット
+  fixedRounds.forEach(f => {
+    (f.pairs || []).forEach(pair => pair.forEach(s => { if(s.name === oldName) s.name = newName; }));
+    (f.byes || []).forEach(s => { if(s.name === oldName) s.name = newName; });
+  });
+  // 4) 表示中の結果
+  if(lastResult && lastResult.schedule){
+    lastResult.schedule.forEach(rd => {
+      rd.pairs.forEach(pair => pair.forEach(s => { if(s.name === oldName) s.name = newName; }));
+      (rd.byes || []).forEach(s => { if(s.name === oldName) s.name = newName; });
+    });
+    (lastResult.pendingReqs || []).forEach(q => {
+      if(q.aName === oldName) q.aName = newName;
+      if(q.bName === oldName) q.bName = newName;
+    });
+    if(lastResult.ngSet){
+      const ns = new Set();
+      lastResult.ngSet.forEach(k => {
+        const [a, b] = k.split("|");
+        ns.add(nameKey(a === oldName ? newName : a, b === oldName ? newName : b));
+      });
+      lastResult.ngSet = ns;
+    }
+  }
+  // 5) 履歴一覧の絞り込み中なら追従
+  if(historyFilterName === oldName) historyFilterName = newName;
+  // 6) 本体
+  p.name = newName;
+  renderAll();
+  if(lastResult) renderResults(lastResult, true);
+}
 function renderPlayers(){
   const wrap = $("player-list");
   wrap.innerHTML = "";
@@ -665,6 +714,11 @@ function renderPlayers(){
       '<div class="row"><b style="color:var(--ai)">' + esc(p.name) + '</b>の変更' +
       '<button class="ghost small" type="button" id="edit-close" style="margin-left:auto">閉じる</button></div>' +
       '<div class="row" style="margin-top:8px">' +
+      '<label style="font-size:13px;color:var(--usuzumi)">名前</label>' +
+      '<input type="text" id="edit-name" value="' + esc(p.name) + '" maxlength="20" style="width:130px">' +
+      '<button class="small" type="button" id="edit-name-btn">変更</button>' +
+      '</div>' +
+      '<div class="row" style="margin-top:8px">' +
       '<label style="font-size:13px;color:var(--usuzumi)">級</label>' +
       '<select id="edit-rank">' + RANKS.map(r =>
         '<option value="' + r + '"' + (r === p.rank ? " selected" : "") + '>' + r + '級</option>').join("") + '</select>' +
@@ -676,9 +730,25 @@ function renderPlayers(){
       (clubMode() ? '<label style="font-size:13px;color:var(--usuzumi)">会</label>' +
         '<span class="picker" id="edit-club"></span>' : '') +
       '</div>' +
-      '<div class="hint">対戦希望・NG・抜けの指定はそのまま残ります。</div>';
+      '<div class="hint">対戦希望・NG・抜けの指定はそのまま残ります。名前を変えると、過去の対戦履歴や確定済みの試合の表示も新しい名前になります。</div>';
     wrap.appendChild(panel);
     $("edit-close").addEventListener("click", () => { editingPlayerId = null; renderAll(); });
+    const doRename = () => {
+      const t = byId(editingPlayerId);
+      if(!t) return;
+      const newName = $("edit-name").value.trim();
+      if(!newName || newName === t.name) return;
+      if(players.some(o => o.id !== t.id && o.name === newName)){
+        alert("「" + newName + "」は他の選手が使っています。別の名前にしてください。");
+        $("edit-name").value = t.name;
+        return;
+      }
+      renamePlayer(t, newName);
+    };
+    $("edit-name-btn").addEventListener("click", doRename);
+    $("edit-name").addEventListener("keydown", e => {
+      if(e.key === "Enter" && !e.isComposing && e.keyCode !== 229){ e.preventDefault(); doRename(); }
+    });
     $("edit-rank").addEventListener("change", () => {
       const t = byId(editingPlayerId);
       if(t){ t.rank = $("edit-rank").value; renderAll(); }
@@ -2230,9 +2300,11 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
   <p>区切りは<b>スペース・「、」・「,」・改行</b>のどれでも使えます。級ごとに繰り返すのが簡単です。</p>
   <h3>Excel・スプレッドシートから貼り付け</h3>
   <p>「名前・級・属性・会」の列を範囲コピーして貼り付けると、各行の値がそのまま反映されます(空欄の行は欄で選んだ値になります)。「A+級」「a」「B＋」などの表記ゆれも読み取ります。</p>
-  <h3>登録後に級などを変える</h3>
-  <p>選手一覧の<b>名前をタップすると、級・属性・会を後から変更</b>できます。「思ったより強かったので級を上げたい」「登録時に間違えた」というときに使ってください。</p>
-  <div class="ok"><b>対戦希望・対戦NG・抜けの指定はそのまま残ります。</b>級を変えるために登録し直す必要はありません。</div>
+  <h3>登録後に名前や級を変える</h3>
+  <p>選手一覧の<b>名前をタップすると、名前・級・属性・会を後から変更</b>できます。「思ったより強かったので級を上げたい」「登録時に打ち間違えた」「フルネームにしたい」というときに使ってください。</p>
+  <div class="ok"><b>対戦希望・対戦NG・抜けの指定はそのまま残ります。</b>変更するために登録し直す必要はありません。</div>
+  <p>名前を変えた場合は、<b>過去の対戦履歴・確定済みの試合・表示中の組み合わせもすべて新しい名前に切り替わります</b>。履歴の連続性が保たれるので、改名した人が「初めて当たる相手」に戻ってしまうことはありません。</p>
+  <div class="note">他の選手と同じ名前には変更できません。同姓の人がいる場合は「佐藤(A)」のように区別してください。</div>
 
   <h3>削除</h3>
   <p>名前の横の <span class="code">×</span> で削除。その人が対戦希望・NG・抜け指定に含まれている場合だけ確認が出ます。</p>
@@ -2428,7 +2500,7 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
   <table>
     <tr><th>状況</th><th>対処</th></tr>
     <tr><td>「再戦」マークが出る</td><td>試合数に対して人数が少ないと、全員と当たり切って再戦が発生します。試合数を減らすか人数を増やしてください。</td></tr>
-    <tr><td>級を間違えて登録した</td><td>選手一覧の名前をタップすれば、希望やNGを保ったまま級・属性・会を変更できます。</td></tr>
+    <tr><td>名前や級を間違えて登録した</td><td>選手一覧の名前をタップすれば、希望・NG・履歴を保ったまま名前・級・属性・会を変更できます。</td></tr>
     <tr><td>作成を押しても何も起きない</td><td>設定に矛盾があると作成を中止し、結果欄に原因を表示します。表示された内容に沿って希望・NG・抜けの指定を直してください。</td></tr>
     <tr><td>対戦希望が組めなかった</td><td><b>結果の上に、希望ごとの理由が表示されます</b>(誰が抜け番だったのか、NGと矛盾しているのか、他の組との兼ね合いなのか)。表示された内容に沿って設定を見直してください。</td></tr>
     <tr><td>NGなのに組まれた</td><td>人数の都合で他に組みようがない状態です。こちらも<b>結果の上に理由が表示</b>されるので、何試合目の何人でその状況になったかを確認できます。</td></tr>
