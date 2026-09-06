@@ -77,6 +77,11 @@ button:disabled{opacity:.6;cursor:default}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{display:inline-flex;align-items:center;gap:6px;background:#F2F2ED;border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;font-size:14px}
 .chip .x{width:20px;height:20px;border-radius:50%;background:#DDDCD5;color:#66666E;border:none;padding:0;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+.chip .pedit{cursor:pointer;border-bottom:1px dotted var(--usuzumi)}
+.chip .pedit:hover{color:var(--ai);border-bottom-color:var(--ai)}
+.chip.editing{background:#EEF1F7;border-color:var(--ai);box-shadow:0 0 0 1px var(--ai)}
+.edit-panel{margin-top:12px;padding:12px 14px;background:#F7F8FB;border:1px solid #C9D2E4;border-radius:9px}
+.edit-panel select{font-size:14px;padding:7px 10px}
 .chip .x:hover{background:var(--aka);color:#fff;filter:none}
 .rank-badge{font-family:var(--serif);font-weight:700;font-size:11.5px;color:#fff;border-radius:4px;padding:1px 6px;letter-spacing:.02em;flex:none;white-space:nowrap}
 .rank-Ap{background:#0F1B33}.rank-A{background:#22335C}
@@ -221,7 +226,7 @@ button:disabled{opacity:.6;cursor:default}
 <section id="sec-players">
   <div class="sec-head"><span class="sec-tag">選手</span><h2>選手登録</h2></div>
   <div class="sec-body">
-    <div class="usage"><b>使い方</b>:名前と級を選んで「追加」。複数人まとめて入れるなら「まとめて追加」で名前を並べて書き、級を1回選ぶだけ。属性(現役/OBOG)はOBOG会モード用、所属会は「会を入れる」をオンにしたときだけ使います(どちらも普段は不要)。名前の×で削除できます。</div>
+    <div class="usage"><b>使い方</b>:名前と級を選んで「追加」。複数人まとめて入れるなら「まとめて追加」で名前を並べて書き、級を1回選ぶだけ。属性(現役/OBOG)はOBOG会モード用、所属会は「会を入れる」をオンにしたときだけ使います(どちらも普段は不要)。<b>名前をタップすると級・属性・会を後から変更できます</b>(対戦希望・NG・抜けの指定はそのまま残ります)。名前の×で削除できます。</div>
     <div class="row" id="anc-club" style="margin-bottom:10px">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--ai);cursor:pointer">
         <input type="checkbox" id="club-mode" style="width:17px;height:17px">
@@ -629,9 +634,11 @@ function removePlayer(id){
   });
   renderAll();
 }
+let editingPlayerId = null;   // 編集パネルを開いている選手
 function renderPlayers(){
   const wrap = $("player-list");
   wrap.innerHTML = "";
+  if(editingPlayerId && !byId(editingPlayerId)) editingPlayerId = null;
   RANKS.forEach(rank => {
     const group = players.filter(p => p.rank === rank);
     if(!group.length) return;
@@ -642,13 +649,64 @@ function renderPlayers(){
       '<span class="cnt">' + group.length + '名</span></div>' +
       '<div class="chips">' +
       group.map(p =>
-        '<span class="chip">' + esc(p.name) + attrTag(p) + clubTag(p) +
+        '<span class="chip' + (p.id === editingPlayerId ? ' editing' : '') + '">' +
+        '<span class="pedit" data-edit="' + p.id + '" title="級などを変更">' + esc(p.name) + '</span>' +
+        attrTag(p) + clubTag(p) +
         '<button class="x" data-del="' + p.id + '" aria-label="' + esc(p.name) + 'を削除">×</button></span>'
       ).join("") + '</div>';
     wrap.appendChild(div);
   });
+  // 編集パネル
+  if(editingPlayerId){
+    const p = byId(editingPlayerId);
+    const panel = document.createElement("div");
+    panel.className = "edit-panel";
+    panel.innerHTML =
+      '<div class="row"><b style="color:var(--ai)">' + esc(p.name) + '</b>の変更' +
+      '<button class="ghost small" type="button" id="edit-close" style="margin-left:auto">閉じる</button></div>' +
+      '<div class="row" style="margin-top:8px">' +
+      '<label style="font-size:13px;color:var(--usuzumi)">級</label>' +
+      '<select id="edit-rank">' + RANKS.map(r =>
+        '<option value="' + r + '"' + (r === p.rank ? " selected" : "") + '>' + r + '級</option>').join("") + '</select>' +
+      '<label style="font-size:13px;color:var(--usuzumi)">属性</label>' +
+      '<select id="edit-attr">' +
+      ['', '現役', 'OBOG'].map(a =>
+        '<option value="' + a + '"' + (a === (p.attr || "") ? " selected" : "") + '>' + (a || "なし") + '</option>').join("") +
+      '</select>' +
+      (clubMode() ? '<label style="font-size:13px;color:var(--usuzumi)">会</label>' +
+        '<span class="picker" id="edit-club"></span>' : '') +
+      '</div>' +
+      '<div class="hint">対戦希望・NG・抜けの指定はそのまま残ります。</div>';
+    wrap.appendChild(panel);
+    $("edit-close").addEventListener("click", () => { editingPlayerId = null; renderAll(); });
+    $("edit-rank").addEventListener("change", () => {
+      const t = byId(editingPlayerId);
+      if(t){ t.rank = $("edit-rank").value; renderAll(); }
+    });
+    $("edit-attr").addEventListener("change", () => {
+      const t = byId(editingPlayerId);
+      if(t){ t.attr = $("edit-attr").value; renderAll(); }
+    });
+    if(clubMode() && $("edit-club")){
+      const cp = buildClubPicker($("edit-club"));
+      const input = $("edit-club").querySelector("input");
+      input.value = p.club || "";
+      const commit = () => {
+        const t = byId(editingPlayerId);
+        if(t && t.club !== input.value.trim()){ t.club = input.value.trim(); saveState(); renderPlayers(); }
+      };
+      input.addEventListener("blur", () => setTimeout(commit, 200));
+      input.addEventListener("change", commit);
+    }
+  }
   wrap.querySelectorAll("[data-del]").forEach(b =>
     b.addEventListener("click", () => removePlayer(+b.dataset.del)));
+  wrap.querySelectorAll("[data-edit]").forEach(b =>
+    b.addEventListener("click", () => {
+      const id = +b.dataset.edit;
+      editingPlayerId = (editingPlayerId === id) ? null : id;
+      renderAll();
+    }));
   $("player-count").textContent = "登録 " + players.length + "名" +
     (players.length % 2 === 1 && players.length > 0 ? "(奇数:毎試合1名が抜け番)" : "");
 }
@@ -2172,6 +2230,10 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
   <p>区切りは<b>スペース・「、」・「,」・改行</b>のどれでも使えます。級ごとに繰り返すのが簡単です。</p>
   <h3>Excel・スプレッドシートから貼り付け</h3>
   <p>「名前・級・属性・会」の列を範囲コピーして貼り付けると、各行の値がそのまま反映されます(空欄の行は欄で選んだ値になります)。「A+級」「a」「B＋」などの表記ゆれも読み取ります。</p>
+  <h3>登録後に級などを変える</h3>
+  <p>選手一覧の<b>名前をタップすると、級・属性・会を後から変更</b>できます。「思ったより強かったので級を上げたい」「登録時に間違えた」というときに使ってください。</p>
+  <div class="ok"><b>対戦希望・対戦NG・抜けの指定はそのまま残ります。</b>級を変えるために登録し直す必要はありません。</div>
+
   <h3>削除</h3>
   <p>名前の横の <span class="code">×</span> で削除。その人が対戦希望・NG・抜け指定に含まれている場合だけ確認が出ます。</p>
 </section>
@@ -2366,6 +2428,7 @@ footer{max-width:780px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:
   <table>
     <tr><th>状況</th><th>対処</th></tr>
     <tr><td>「再戦」マークが出る</td><td>試合数に対して人数が少ないと、全員と当たり切って再戦が発生します。試合数を減らすか人数を増やしてください。</td></tr>
+    <tr><td>級を間違えて登録した</td><td>選手一覧の名前をタップすれば、希望やNGを保ったまま級・属性・会を変更できます。</td></tr>
     <tr><td>作成を押しても何も起きない</td><td>設定に矛盾があると作成を中止し、結果欄に原因を表示します。表示された内容に沿って希望・NG・抜けの指定を直してください。</td></tr>
     <tr><td>対戦希望が組めなかった</td><td><b>結果の上に、希望ごとの理由が表示されます</b>(誰が抜け番だったのか、NGと矛盾しているのか、他の組との兼ね合いなのか)。表示された内容に沿って設定を見直してください。</td></tr>
     <tr><td>NGなのに組まれた</td><td>人数の都合で他に組みようがない状態です。こちらも<b>結果の上に理由が表示</b>されるので、何試合目の何人でその状況になったかを確認できます。</td></tr>
